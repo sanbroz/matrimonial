@@ -2,17 +2,14 @@ import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { classifyHost } from "./host";
+import { classifyHost, effectiveHost } from "./host";
 import { tenantForHost, type TenantInfo } from "./registry";
 
-/**
- * The request's own Host header. Not a header added by middleware: after a server action, Next.js
- * renders the redirect target inside the same request WITHOUT running middleware, so middleware-added
- * headers are missing there (the user then looked signed out and landed on the dashboard).
- */
+/** The address the visitor used (see effectiveHost). */
 async function requestHost(): Promise<string | null> {
   try {
-    return (await headers()).get("host");
+    const h = await headers();
+    return effectiveHost((n) => h.get(n)) || null;
   } catch {
     return null; // not inside a request
   }

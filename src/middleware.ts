@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { CONSOLE_COOKIE, SESSION_COOKIE, verifyConsoleSession, verifySession } from "@/lib/auth/session";
-import { classifyHost, normalizeHost } from "@/lib/tenant/host";
+import { classifyHost, effectiveHost } from "@/lib/tenant/host";
 
 /**
  * Routes each request by host and does a fast login check. First line of defence only:
@@ -9,13 +9,13 @@ import { classifyHost, normalizeHost } from "@/lib/tenant/host";
  *   console host  (bureau.<domain>)  → /console/* pages (and / → /console), super admin login
  *   bureau hosts  (<slug>.<domain> or a custom domain) → the bureau app
  *
- * Pages and actions find their bureau from the Host header themselves (src/lib/tenant/context.ts).
+ * Pages and actions find their bureau from the same address themselves (src/lib/tenant/context.ts).
  */
 const TENANT_PUBLIC = [/^\/login$/, /^\/forgot$/, /^\/reset\//, /^\/suspended$/, /^\/api\/health$/];
 const CONSOLE_PUBLIC = [/^\/console\/login$/];
 
 export async function middleware(req: NextRequest) {
-  const host = normalizeHost(req.headers.get("host"));
+  const host = effectiveHost((n) => req.headers.get(n));
   const kind = classifyHost(host);
   const path = req.nextUrl.pathname;
 

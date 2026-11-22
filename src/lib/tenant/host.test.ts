@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyHost, schemaForSlug, slugError } from "./host";
+import { classifyHost, effectiveHost, schemaForSlug, slugError } from "./host";
 
 describe("classifyHost", () => {
   const C = (h: string) => classifyHost(h, "sanbroz.com", "bureau");
@@ -35,5 +35,14 @@ describe("slugs", () => {
   });
   it("maps to a schema name", () => {
     expect(schemaForSlug("sharma-bureau")).toBe("t_sharma_bureau");
+  });
+});
+
+describe("effectiveHost", () => {
+  const h = (o: Record<string, string>) => (n: string) => o[n];
+  it("prefers the proxy's X-Forwarded-Host (Next.js re-requests pages on localhost after an action)", () => {
+    expect(effectiveHost(h({ host: "localhost:3000", "x-forwarded-host": "matrimonial.sanbroz.com" }))).toBe("matrimonial.sanbroz.com");
+    expect(effectiveHost(h({ host: "Matrimonial.sanbroz.com" }))).toBe("matrimonial.sanbroz.com");
+    expect(effectiveHost(h({ host: "x", "x-forwarded-host": "a.sanbroz.com, b.example" }))).toBe("a.sanbroz.com");
   });
 });

@@ -18,6 +18,17 @@ export function normalizeHost(host: string | null | undefined): string {
   return (host ?? "").trim().toLowerCase().replace(/\.$/, "");
 }
 
+/**
+ * The address the visitor used. Prefers X-Forwarded-Host: Caddy always sets it from the real Host
+ * (replacing anything a browser sends; the app port itself isn't reachable from outside), and Next.js
+ * keeps it when it re-requests a page internally after a server action. That internal request goes to
+ * localhost, so its own Host header would name no bureau.
+ */
+export function effectiveHost(get: (name: string) => string | null | undefined): string {
+  const fwd = get("x-forwarded-host")?.split(",")[0];
+  return normalizeHost(fwd || get("host"));
+}
+
 export function platformDomain(): string {
   return normalizeHost(process.env.PLATFORM_DOMAIN || "localhost:3000");
 }
