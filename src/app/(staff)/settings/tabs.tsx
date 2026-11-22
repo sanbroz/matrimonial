@@ -19,8 +19,8 @@ const TABS = [
 export function SettingsTabs() {
   const path = usePathname();
   return (
-    // overflow-y-hidden: the tabs' -1px underline overlap otherwise makes Windows draw a vertical scrollbar
-    <div className="no-scrollbar mb-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-zinc-200">
+    // Wraps onto a second line when there are many tabs (no hidden overflow, no scrollbar)
+    <div className="mb-5 flex flex-wrap gap-x-1 border-b border-zinc-200">
       {TABS.map((t) => (
         <Link
           key={t.href}

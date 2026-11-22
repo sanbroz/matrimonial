@@ -100,6 +100,15 @@ Cloudflare R2 / Backblaze B2. `ops/deploy.sh` installs and updates, `ops/backup-
 `ops/restore.sh` restores. Login is locked for 15 minutes after 5 wrong passwords per email (20 per address),
 and `/api/health` is there for uptime monitoring.
 
+## Email & WhatsApp (v1.1)
+
+- **Email** through the bureau's Gmail (App Password, stored encrypted): biodata as PDF, receipts,
+  *Forgot password* links (1 hour, single use; signs the account out elsewhere), and a **daily summary** to owners.
+- **WhatsApp** through an internal Baileys container (`ops/whatsapp`), linked to a bureau number by QR code:
+  biodata image, payment / renewal / meeting reminders and receipts. One message at a time, always previewed by staff.
+- Message texts are editable in Settings → Message templates. Every message is logged on the profile.
+- Setup steps: DEPLOY.md, "Email and WhatsApp".
+
 ## Later ideas
 
 - Public self-registration app / website for families (the data model already allows it)

@@ -60,8 +60,9 @@ async function connect() {
     logger,
     browser: Browsers.ubuntu("Bureau CRM"),
     markOnlineOnConnect: false,
+    // Don't download the full chat history, but keep Baileys' initial sync: it needs it for
+    // contact/LID mappings (disabling all sync makes sessions unstable).
     syncFullHistory: false,
-    shouldSyncHistoryMessage: () => false,
     getMessage: async (key) => sentStore.get(key.id) ?? undefined,
   });
   sock.ev.on("creds.update", saveCreds);

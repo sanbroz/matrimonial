@@ -117,6 +117,25 @@ In Cloudflare Zero Trust → Networks → Tunnels → your tunnel → **Public h
 `crm.yourbureau.in`, service **HTTP** `localhost:8090`. (If cloudflared itself runs in Docker rather than on the
 host, use the host's LAN IP with `HTTP_BIND` set to that IP.) Ports 80/443 don't need to be open.
 
+## Email and WhatsApp (owner, after the first start)
+
+**Email (Gmail):** Settings → Email.
+1. In the bureau's Gmail turn on 2-Step Verification, then create an **App Password** at
+   myaccount.google.com/apppasswords. Your normal Gmail password is never used.
+2. Enter the Gmail address and the App Password, tick *Send emails from the app*, save, then *Send test*.
+3. Optional: turn on the *Daily summary* and pick a time.
+
+`APP_URL` (e.g. `https://matrimonial.sanbroz.com`) must be set in `.env.production`. Password-reset emails are
+refused without it. The App Password is stored encrypted with `AUTH_SECRET`; if `AUTH_SECRET` ever changes,
+enter the App Password again.
+
+**WhatsApp:** Settings → WhatsApp. On the **bureau's phone** open WhatsApp → Linked devices → Link a device,
+and scan the QR code. Then send a test message to your own phone. Use a separate bureau number. This connection
+is unofficial (WhatsApp Web style), and unsolicited or bulk messages can get a number banned.
+
+The linked WhatsApp session lives in the `whatsapp_auth` Docker volume and is **not** part of the backups.
+After restoring onto a new server, just scan the QR code again.
+
 ## 7. Backups
 
 - Every night at `BACKUP_TIME` (default 02:30 India time) one encrypted file is written:
