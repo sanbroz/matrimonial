@@ -3,32 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireOwner } from "@/lib/auth/server";
-import { logoutWhatsApp, sendWhatsApp } from "@/lib/services/whatsapp";
-import { prisma } from "@/lib/db";
-import { readWhatsAppOptions } from "@/lib/whatsapp-options";
+import { logoutWhatsApp, sendWhatsApp, startWhatsAppLink } from "@/lib/services/whatsapp";
 
 export async function unlinkWhatsApp() {
   await requireOwner();
   await logoutWhatsApp();
   revalidatePath("/settings/whatsapp");
-  redirect(`/settings/whatsapp?ok=${encodeURIComponent("Number unlinked. Scan the new QR code to link a number again.")}`);
+  redirect(`/settings/whatsapp?ok=${encodeURIComponent("Number unlinked. Click \"Link a WhatsApp number\" to link one again.")}`);
 }
 
-export async function saveWhatsAppOptions(fd: FormData) {
+export async function linkWhatsApp() {
   await requireOwner();
-  const s = await prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { whatsappOptions: true } });
-  const current = readWhatsAppOptions(s.whatsappOptions);
-  const hour = String(fd.get("hour") ?? "03");
-  const next = {
-    ...current,
-    autoUpdate: fd.get("autoUpdate") === "on",
-    hour: /^\d{2}$/.test(hour) && Number(hour) < 24 ? `${hour}:00` : current.hour,
-    // turning auto-update on again gives a previously failed version another chance
-    ...(fd.get("autoUpdate") === "on" && !current.autoUpdate ? { skipVersion: null } : {}),
-  };
-  await prisma.settings.update({ where: { id: 1 }, data: { whatsappOptions: next } });
+  await startWhatsAppLink();
   revalidatePath("/settings/whatsapp");
-  redirect(`/settings/whatsapp?ok=${encodeURIComponent(next.autoUpdate ? `Automatic updates on, at ${next.hour}` : "Automatic updates off")}`);
+  redirect("/settings/whatsapp");
 }
 
 export async function sendTestWhatsApp(fd: FormData) {

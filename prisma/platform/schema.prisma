@@ -1,0 +1,112 @@
+// Platform (super admin) database: the bureaus (tenants), their billing and the super admin logins.
+// Lives in the "platform" schema. Each bureau's own data lives in its own schema (t_<slug>),
+// described by ../schema.prisma.
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../../src/generated/platform"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PLATFORM_DATABASE_URL")
+}
+
+model SuperAdmin {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  active       Boolean  @default(true)
+  /// Raised on password change: ends older sessions
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  HALF_YEARLY
+  YEARLY
+}
+
+model Tenant {
+  id              String          @id @default(cuid())
+  /// Subdomain: <slug>.<PLATFORM_DOMAIN>
+  slug            String          @unique
+  name            String
+  /// PostgreSQL schema holding this bureau's data
+  schema          String          @unique
+  status          TenantStatus    @default(ACTIVE)
+  suspendedReason String?
+  contactName     String?
+  contactPhone    String?
+  contactEmail    String?
+  notes           String?
+  // Billing (what the bureau pays the platform)
+  planName        String?
+  /// Whole rupees per cycle
+  fee             Int             @default(0)
+  billingCycle    BillingCycle    @default(MONTHLY)
+  /// Next payment due (date only, UTC midnight)
+  nextDueDate     DateTime?       @db.Date
+  /// Suspend automatically when overdue this many days (null = never)
+  autoSuspendDays Int?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  domains         TenantDomain[]
+  payments        TenantPayment[]
+}
+
+/// Custom domains (e.g. crm.sharmabureau.com). The <slug>.<PLATFORM_DOMAIN> subdomain is implicit.
+model TenantDomain {
+  id        String   @id @default(cuid())
+  host      String   @unique
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Only active domains are served (switched on once DNS and certificates are set up)
+  active    Boolean  @default(false)
+  /// Used for links in emails when active
+  primary   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model TenantPayment {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  amount     Int
+  mode       String
+  paidAt     DateTime  @db.Date
+  /// Billing period this payment covers
+  periodFrom DateTime? @db.Date
+  periodTo   DateTime? @db.Date
+  note       String?
+  voidedAt   DateTime?
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId, paidAt])
+}
+
+model PlatformSettings {
+  id          Int      @id @default(1)
+  /// Same shape as a bureau's Settings.emailConfig (Gmail App Password sealed)
+  emailConfig Json?
+  /// Daily billing/backup summary to super admins: { enabled, time }
+  summary     Json?
+  summarySentOn String?
+  /// WhatsApp library auto-update options (see whatsapp-options.ts)
+  whatsappOptions Json?
+  updatedAt   DateTime @updatedAt
+}

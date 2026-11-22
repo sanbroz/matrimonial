@@ -4,7 +4,9 @@ import bcrypt from "bcryptjs";
 import { createHash, randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { appBaseUrl, clientIp } from "@/lib/auth/client-ip";
+import { clientIp } from "@/lib/auth/client-ip";
+import { requireTenant } from "@/lib/tenant/context";
+import { tenantBaseUrl } from "@/lib/tenant/registry";
 import { loginLimits } from "@/lib/auth/rate-limit";
 import { isEmailConfigured, sendEmail } from "@/lib/services/email";
 
@@ -18,16 +20,18 @@ const hash = (t: string) => createHash("sha256").update(t).digest("hex");
 export async function requestReset(_prev: { done?: boolean; error?: string; email?: string } | undefined, fd: FormData) {
   const email = String(fd.get("email") ?? "").toLowerCase().trim();
   if (!/^\S+@\S+\.\S+$/.test(email)) return { error: "Enter your email address." };
+  const tenant = await requireTenant();
   const ip = await clientIp();
-  if (loginLimits.email.blockedFor(`reset:${email}`) || loginLimits.ip.blockedFor(`reset:${ip}`)) {
+  const key = `reset:${tenant.id}:${email}`;
+  if (loginLimits.email.blockedFor(key) || loginLimits.ip.blockedFor(`reset:${ip}`)) {
     return { error: "Too many requests. Please try again later.", email };
   }
-  loginLimits.email.fail(`reset:${email}`);
+  loginLimits.email.fail(key);
   loginLimits.ip.fail(`reset:${ip}`);
 
-  const base = await appBaseUrl();
-  if (!(await isEmailConfigured()) || !base) {
-    if (!base) console.error("[reset] APP_URL is not set in .env.production; password reset emails are disabled");
+  // Link on this bureau's own address (never taken from the request headers)
+  const base = await tenantBaseUrl(tenant);
+  if (!(await isEmailConfigured())) {
     return { error: "Password reset by email isn't set up yet. Ask the owner to reset your password in Settings → Staff.", email };
   }
 
@@ -78,6 +82,6 @@ export async function resetPassword(token: string, _prev: { error?: string } | u
     return true;
   });
   if (!used) return { error: "This link has expired or was already used. Ask for a new one." };
-  loginLimits.email.reset(row.user.email);
+  loginLimits.email.reset(`${(await requireTenant()).id}:${row.user.email}`);
   redirect("/login?reset=1");
 }

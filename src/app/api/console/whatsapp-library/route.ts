@@ -1,25 +1,23 @@
-import { getCurrentUser } from "@/lib/auth/server";
-import { checkLibraryNow, getWhatsAppStatus } from "@/lib/services/whatsapp";
+import { getConsoleAdmin } from "@/lib/auth/server";
+import { checkLibraryNow, getWhatsAppLibrary, listWhatsAppSessions } from "@/lib/services/whatsapp";
 import { getBaileysRun, rollbackBaileys, startBaileysUpdate } from "@/lib/updater";
 
 export const dynamic = "force-dynamic";
 
-/** Owner only: WhatsApp library versions + update run. */
+/** Super admin: WhatsApp library versions + update run. */
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return Response.json({ error: "Not signed in" }, { status: 401 });
-  if (user.role !== "OWNER") return Response.json({ error: "Owner only" }, { status: 403 });
-  const [wa, updater] = await Promise.all([getWhatsAppStatus(), getBaileysRun()]);
-  return Response.json({ connection: wa.status, library: wa.library ?? null, updater });
+  if (!(await getConsoleAdmin())) return Response.json({ error: "Not signed in" }, { status: 401 });
+  const [library, sessions, updater] = await Promise.all([getWhatsAppLibrary(), listWhatsAppSessions(), getBaileysRun()]);
+  const open = sessions?.filter((s) => s.status === "open").length ?? 0;
+  const connection = library ? (sessions?.length ? (open ? "open" : "closed") : "not_linked") : "unavailable";
+  return Response.json({ connection, sessions: sessions ?? [], library, updater });
 }
 
 /** POST {action: "update", version} | {action: "rollback"} | {action: "check"} */
 export async function POST(req: Request) {
   const site = req.headers.get("sec-fetch-site");
   if (site && site !== "same-origin") return Response.json({ error: "Forbidden" }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return Response.json({ error: "Not signed in" }, { status: 401 });
-  if (user.role !== "OWNER") return Response.json({ error: "Owner only" }, { status: 403 });
+  if (!(await getConsoleAdmin())) return Response.json({ error: "Not signed in" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   if (body.action === "check") {
     await checkLibraryNow();
@@ -31,8 +29,8 @@ export async function POST(req: Request) {
   }
   if (body.action === "update") {
     // Only the version the WhatsApp service itself reports as latest can be installed from here
-    const wa = await getWhatsAppStatus();
-    if (!wa.library?.latest || wa.library.latest !== body.version) {
+    const lib = await getWhatsAppLibrary();
+    if (!lib?.latest || lib.latest !== body.version) {
       return Response.json({ ok: false, error: "That version isn't the latest release" }, { status: 409 });
     }
     const r = await startBaileysUpdate(body.version);

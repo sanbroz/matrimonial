@@ -1,6 +1,6 @@
 # Production image for Bureau CRM.
 #   runner: the slim web app (node server.js)
-#   tools:  full source + dev tools, used to run database migrations and the first-time seed
+#   tools:  full source + dev tools, runs ops/migrate-all.ts (all bureaus' migrations) on every deploy
 # Build/run via docker-compose.prod.yml (see DEPLOY.md).
 
 FROM node:24-bookworm-slim AS base
@@ -17,7 +17,7 @@ RUN npm ci --no-audit --no-fund
 # ---- build ----
 FROM deps AS tools
 COPY . .
-RUN npx prisma generate && npx next build
+RUN npm run db:generate && npx next build
 
 # ---- runtime ----
 FROM base AS runner
@@ -28,6 +28,9 @@ ENV NODE_ENV=production \
 COPY --from=tools --chown=node:node /app/.next/standalone ./
 COPY --from=tools --chown=node:node /app/.next/static ./.next/static
 COPY --from=tools --chown=node:node /app/public ./public
+# Migrations: the console creates new bureaus (and restores old backups) by applying them itself
+COPY --from=tools --chown=node:node /app/prisma/migrations ./prisma/migrations
+COPY --from=tools --chown=node:node /app/prisma/platform/migrations ./prisma/platform/migrations
 RUN mkdir -p /data/uploads && chown -R node:node /data
 # Which code this image was built from (shown in the app; used to detect updates). Set by ops/deploy.sh.
 ARG APP_COMMIT=unknown

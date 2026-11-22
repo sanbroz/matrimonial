@@ -81,15 +81,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         }
       />
       {denied && <div className="mb-4"><Alert tone="amber">That page is for the owner only.</Alert></div>}
-      {wa?.library?.updateAvailable && (
-        <div className="mb-4">
-          <Alert tone="amber">
-            A new WhatsApp library version is available ({wa.library.installed} → {wa.library.latest}). Install it to keep WhatsApp
-            working with WhatsApp&apos;s latest changes. <Link href="/settings/whatsapp" className="font-medium underline">Update in Settings → WhatsApp</Link>
-          </Alert>
-        </div>
-      )}
-      {isOwner && wa && ["logged_out", "closed"].includes(wa.status) && (
+      {isOwner && wa && (wa.status === "closed" || (wa.status === "not_linked" && wa.lastError)) && (
         <div className="mb-4">
           <Alert>
             WhatsApp is disconnected. <Link href="/settings/whatsapp" className="font-medium underline">Link the bureau number again</Link>

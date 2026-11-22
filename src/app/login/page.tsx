@@ -4,10 +4,13 @@ import { getCurrentUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { Alert } from "@/components/ui";
 import { LoginForm } from "./login-form";
+import { requireTenant } from "@/lib/tenant/context";
 
 export const metadata = { title: "Sign in" };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ reset?: string }> }) {
+  const tenant = await requireTenant(); // 404 on unknown hosts
+  if (tenant.status === "SUSPENDED") redirect("/suspended");
   if (await getCurrentUser()) redirect("/");
   const { reset } = await searchParams;
   const settings = await prisma.settings.findUnique({ where: { id: 1 }, select: { bureauName: true } });

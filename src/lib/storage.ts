@@ -2,13 +2,17 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { requireTenant } from "@/lib/tenant/context";
 
 /**
  * Local-disk storage for photos, kundli files and the bureau logo.
  * Files live OUTSIDE /public and are only served through /api/files (login required).
  * Swap this module for S3/R2 when hosting in the cloud; callers only use these functions.
  */
-const ROOT = path.resolve(process.env.UPLOAD_DIR || "./storage/uploads");
+const UPLOADS = path.resolve(process.env.UPLOAD_DIR || "./storage/uploads");
+
+/** Each bureau's files live in their own folder: <UPLOAD_DIR>/<slug>/… */
+export const uploadsRootFor = (slug: string) => path.join(UPLOADS, slug);
 
 export const IMAGE_TYPES: Record<string, string> = {
   "image/jpeg": ".jpg",
@@ -29,14 +33,14 @@ export async function saveUpload(file: File, folder: string, allowed: Record<str
   if (!ext) throw new UploadError(`File type not allowed (${file.type || "unknown"})`);
   const safeFolder = folder.replace(/[^a-zA-Z0-9_\-/]/g, "");
   const key = `${safeFolder}/${randomUUID()}${ext}`;
-  const full = resolveKey(key);
+  const full = await resolveKey(key);
   await mkdir(path.dirname(full), { recursive: true });
   await writeFile(full, Buffer.from(await file.arrayBuffer()));
   return key;
 }
 
 export async function readUpload(key: string): Promise<{ data: Buffer; type: string } | null> {
-  const full = resolveKey(key);
+  const full = await resolveKey(key);
   try {
     const data = await readFile(full);
     const ext = path.extname(full).toLowerCase();
@@ -50,16 +54,17 @@ export async function readUpload(key: string): Promise<{ data: Buffer; type: str
 export async function deleteUpload(key: string | null | undefined) {
   if (!key) return;
   try {
-    await unlink(resolveKey(key));
+    await unlink(await resolveKey(key));
   } catch {
     /* already gone */
   }
 }
 
-/** Resolve a key inside ROOT; rejects path traversal. */
-function resolveKey(key: string): string {
-  const full = path.resolve(ROOT, key);
-  if (!full.startsWith(ROOT + path.sep)) throw new UploadError("Invalid file path");
+/** Resolve a key inside the current bureau's folder; rejects path traversal. */
+async function resolveKey(key: string): Promise<string> {
+  const root = uploadsRootFor((await requireTenant()).slug);
+  const full = path.resolve(root, key);
+  if (!full.startsWith(root + path.sep)) throw new UploadError("Invalid file path");
   return full;
 }
 

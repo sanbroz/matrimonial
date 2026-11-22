@@ -20,7 +20,18 @@ const CHECK_EVERY = 15 * 60_000;
  * Version line under "Sign out". For the owner it also checks for a newer release on the
  * server and offers "Back up & update", then follows the update until the new version answers.
  */
-export function UpdateNotice({ initial, isOwner, screen }: { initial: Running; isOwner: boolean; screen: "desktop" | "mobile" }) {
+export function UpdateNotice({
+  initial,
+  isOwner,
+  screen,
+  endpoint = "/api/console/update",
+}: {
+  initial: Running;
+  /** Can install updates (super admin console); bureau staff only see the version */
+  isOwner: boolean;
+  screen: "desktop" | "mobile";
+  endpoint?: string;
+}) {
   const [status, setStatus] = useState<Status | null>(null);
   const [phase, setPhase] = useState<"idle" | "confirm" | "updating" | "done" | "failed">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +51,7 @@ export function UpdateNotice({ initial, isOwner, screen }: { initial: Running; i
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch("/api/update", { cache: "no-store" });
+      const r = await fetch(endpoint, { cache: "no-store" });
       if (!r.ok) return null;
       const s: Status = await r.json();
       setStatus(s);
@@ -48,7 +59,7 @@ export function UpdateNotice({ initial, isOwner, screen }: { initial: Running; i
     } catch {
       return null; // app restarting during an update
     }
-  }, []);
+  }, [endpoint]);
 
   useEffect(() => {
     if (!isOwner || !active) return;
@@ -79,7 +90,7 @@ export function UpdateNotice({ initial, isOwner, screen }: { initial: Running; i
     setError(null);
     target.current = status?.available?.commit ?? null;
     try {
-      const r = await fetch("/api/update", { method: "POST" });
+      const r = await fetch(endpoint, { method: "POST" });
       if (r.status === 202) setPhase("updating");
       else setError((await r.json().catch(() => ({}))).error ?? "Could not start the update");
     } catch {
@@ -120,7 +131,7 @@ export function UpdateNotice({ initial, isOwner, screen }: { initial: Running; i
 
       {isOwner && status?.whatsapp?.latest && (
         <a
-          href="/settings/whatsapp"
+          href="/updates"
           className="flex w-full items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1.5 text-left text-xs font-medium text-emerald-900 ring-1 ring-emerald-200 hover:bg-emerald-100"
           title={`WhatsApp library ${status.whatsapp.installed} → ${status.whatsapp.latest}`}
         >

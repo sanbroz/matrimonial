@@ -33,18 +33,25 @@ services:
     environment:
       DATABASE_URL: postgresql://matri:${POSTGRES_PASSWORD}@db:5432/matrimonial?schema=public
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env.production}
-      APP_URL: ${APP_URL:-}
+      # Bureaus answer on <slug>.PLATFORM_DOMAIN, the super admin console on CONSOLE_SUBDOMAIN.PLATFORM_DOMAIN
+      PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:?set PLATFORM_DOMAIN in .env.production}
+      CONSOLE_SUBDOMAIN: ${CONSOLE_SUBDOMAIN:-bureau}
+      RESERVED_SLUGS: ${RESERVED_SLUGS:-}
+      PUBLIC_SCHEME: ${PUBLIC_SCHEME:-https}
       CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-}
       UPDATER_URL: http://updater:8787
       UPDATER_TOKEN: ${UPDATER_TOKEN:-}
       WHATSAPP_URL: http://whatsapp:8788
       WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
+      BACKUP_URL: http://backup:8789
+      BACKUP_TOKEN: ${BACKUP_TOKEN:-}
     volumes:
       - uploads:/data/uploads
     depends_on:
       db: { condition: service_healthy }
 
-  # One-off: database migrations + first-time setup (owner account, dropdown lists)
+  # One-off on every deploy: platform + every bureau's migrations, default data, first super admin.
+  # The first time, it also moves a single-bureau install into bureau FIRST_TENANT_SLUG.
   tools:
     build: { context: ., target: tools }
     image: bureau-crm-tools
@@ -52,7 +59,10 @@ services:
     env_file: .env.production
     environment:
       DATABASE_URL: postgresql://matri:${POSTGRES_PASSWORD}@db:5432/matrimonial?schema=public
-    command: sh -c "npx prisma migrate deploy && npx prisma db seed"
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - uploads:/data/uploads
+    command: npx tsx ops/migrate-all.ts
     depends_on:
       db: { condition: service_healthy }
 
@@ -85,7 +95,7 @@ services:
     depends_on:
       db: { condition: service_healthy }
 
-  # In-app updates (Settings: owner clicks "Update"). Not published on any port; needs UPDATER_TOKEN.
+  # In-app updates (super admin console → "Back up & update"). Not published on any port; needs UPDATER_TOKEN.
   # It has the Docker socket so it can rebuild/restart the other containers via ops/deploy.sh.
   updater:
     build: ./ops/updater
@@ -101,7 +111,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - .:/repo
 
-  # WhatsApp sender (Baileys). Linked to the bureau number by QR code in Settings → WhatsApp.
+  # WhatsApp sender (Baileys): one session per bureau, each linked by QR code in that bureau's Settings → WhatsApp.
   # Not published on any port; needs WHATSAPP_TOKEN (created by ops/deploy.sh).
   whatsapp:
     build:
@@ -113,6 +123,8 @@ services:
     restart: unless-stopped
     environment:
       WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
+      # The number linked before multi-bureau support belongs to this bureau
+      WHATSAPP_LEGACY_TENANT: ${FIRST_TENANT_SLUG:-matrimonial}
     volumes:
       - whatsapp_auth:/data
 

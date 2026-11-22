@@ -1,8 +1,12 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { toWhatsAppNumber } from "@/lib/wa-number";
+import { requireTenant } from "@/lib/tenant/context";
 
-/** Client for the internal WhatsApp container (Baileys). */
+/**
+ * Client for the internal WhatsApp container (Baileys). It runs one WhatsApp session per bureau:
+ * bureau calls go to /t/<slug>/…, the library (version/update) calls are platform-wide.
+ */
 const URL_ = process.env.WHATSAPP_URL;
 const TOKEN = process.env.WHATSAPP_TOKEN;
 export const whatsappConfigured = !!(URL_ && TOKEN);
@@ -19,7 +23,7 @@ export interface WhatsAppLibrary {
 }
 
 export interface WhatsAppStatus {
-  status: "starting" | "qr" | "connecting" | "open" | "logged_out" | "closed" | "unavailable";
+  status: "not_linked" | "starting" | "qr" | "connecting" | "open" | "logged_out" | "closed" | "unavailable";
   qr: string | null;
   me: { id: string | null; name: string | null } | null;
   lastError: string | null;
@@ -43,11 +47,51 @@ async function call(path: string, init?: RequestInit, timeoutMs = 5000) {
   });
 }
 
+/** Path for the current bureau's session. */
+async function tenantPath(p: string) {
+  return `/t/${(await requireTenant()).slug}${p}`;
+}
+
+/** Library version info (platform-wide; console). */
+export async function getWhatsAppLibrary(): Promise<WhatsAppLibrary | null> {
+  if (!whatsappConfigured) return null;
+  try {
+    const r = await call("/library");
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Every bureau's session (console). */
+export async function listWhatsAppSessions(): Promise<{ slug: string; status: WhatsAppStatus["status"]; me: WhatsAppStatus["me"] }[] | null> {
+  if (!whatsappConfigured) return null;
+  try {
+    const r = await call("/sessions");
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Forget a bureau's WhatsApp session for good (bureau deleted). */
+export async function removeWhatsAppSession(slug: string) {
+  if (!whatsappConfigured) return;
+  await call(`/t/${slug}/remove`, { method: "POST" }, 15_000).catch(() => {});
+}
+
+/** Start linking the current bureau's number (a QR code appears in the status). */
+export async function startWhatsAppLink() {
+  if (!whatsappConfigured) return;
+  await call(await tenantPath("/link"), { method: "POST" }, 15_000).catch(() => {});
+}
+
+/** The current bureau's WhatsApp connection. */
 export async function getWhatsAppStatus(): Promise<WhatsAppStatus> {
   const unavailable = (lastError: string): WhatsAppStatus => ({ status: "unavailable", qr: null, me: null, lastError });
   if (!whatsappConfigured) return unavailable("The WhatsApp service is not part of this installation (development mode).");
   try {
-    const r = await call("/status");
+    const r = await call(await tenantPath("/status"));
     return r.ok ? await r.json() : unavailable(`Service error ${r.status}`);
   } catch {
     return unavailable("The WhatsApp service is not responding.");
@@ -56,7 +100,7 @@ export async function getWhatsAppStatus(): Promise<WhatsAppStatus> {
 
 export async function logoutWhatsApp() {
   if (!whatsappConfigured) return;
-  await call("/logout", { method: "POST" }, 15_000).catch(() => {});
+  await call(await tenantPath("/logout"), { method: "POST" }, 15_000).catch(() => {});
 }
 
 export type WaResult = { ok: true; id: string | null } | { ok: false; error: string };
@@ -78,7 +122,7 @@ export async function sendWhatsApp(input: {
     try {
       // Generous timeout: messages are queued a few seconds apart
       const r = await call(
-        "/send",
+        await tenantPath("/send"),
         { method: "POST", body: JSON.stringify({ to, text: input.text, image: input.image?.toString("base64") }) },
         120_000,
       );

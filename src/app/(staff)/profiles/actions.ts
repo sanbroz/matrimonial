@@ -111,10 +111,10 @@ export async function photoAction(fd: FormData) {
   const photo = await prisma.photo.findUnique({ where: { id } });
   if (!photo) return;
   if (op === "primary") {
-    await prisma.$transaction([
-      prisma.photo.updateMany({ where: { profileId: photo.profileId }, data: { isPrimary: false } }),
-      prisma.photo.update({ where: { id }, data: { isPrimary: true } }),
-    ]);
+    await prisma.$transaction(async (tx) => {
+      await tx.photo.updateMany({ where: { profileId: photo.profileId }, data: { isPrimary: false } });
+      await tx.photo.update({ where: { id }, data: { isPrimary: true } });
+    });
   } else if (op === "toggleBiodata") {
     await prisma.photo.update({ where: { id }, data: { onBiodata: !photo.onBiodata } });
   } else {

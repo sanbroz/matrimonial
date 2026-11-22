@@ -39,7 +39,7 @@ export function LibraryCard() {
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch("/api/whatsapp/library", { cache: "no-store" });
+      const r = await fetch("/api/console/whatsapp-library", { cache: "no-store" });
       if (r.ok) setInfo(await r.json());
     } catch {
       /* WhatsApp service restarting during an update */
@@ -69,7 +69,7 @@ export function LibraryCard() {
   async function act(body: { action: string; version?: string | null }, confirmText?: string) {
     if (confirmText && !window.confirm(confirmText)) return;
     setError(null);
-    const r = await fetch("/api/whatsapp/library", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const r = await fetch("/api/console/whatsapp-library", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok && j.error) setError(j.error);
     if (r.ok && body.action !== "check") setWatching(true);

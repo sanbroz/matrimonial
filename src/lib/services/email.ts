@@ -26,7 +26,12 @@ export type SendResult = { ok: true; id?: string } | { ok: false; error: string 
 
 async function loadTransport() {
   const s = await prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { emailConfig: true, bureauName: true } });
-  const cfg = readEmailConfig(s.emailConfig);
+  return transportFor(s.emailConfig, s.bureauName);
+}
+
+/** SMTP transport from a stored email config (a bureau's, or the platform's). */
+export function transportFor(emailConfig: unknown, defaultFromName: string) {
+  const cfg = readEmailConfig(emailConfig);
   if (!cfg.enabled || !cfg.user || !cfg.passwordSealed) return { error: "Email is not set up (Settings → Email)" } as const;
   const pass = open(cfg.passwordSealed);
   if (!pass) return { error: "The saved email password can't be read. Enter it again in Settings → Email." } as const;
@@ -39,7 +44,7 @@ async function loadTransport() {
     greetingTimeout: 15_000,
     socketTimeout: 30_000,
   });
-  return { transport, from: { name: cfg.fromName || s.bureauName, address: cfg.user } } as const;
+  return { transport, from: { name: cfg.fromName || defaultFromName, address: cfg.user } } as const;
 }
 
 export async function isEmailConfigured(): Promise<boolean> {
@@ -93,7 +98,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
   return result;
 }
 
-function friendlySmtpError(e: unknown): string {
+export function friendlySmtpError(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
   if (/Invalid login|Username and Password not accepted|535/i.test(msg))
     return "Gmail refused the login. Use a Gmail App Password (not your normal password) and check the address.";

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui";
 
 type Status = {
-  status: "starting" | "qr" | "connecting" | "open" | "logged_out" | "closed" | "unavailable";
+  status: "not_linked" | "starting" | "qr" | "connecting" | "open" | "logged_out" | "closed" | "unavailable";
   qr: string | null;
   me: { id: string | null; name: string | null } | null;
   lastError: string | null;
@@ -12,6 +12,7 @@ type Status = {
 
 const LABEL: Record<Status["status"], [string, "green" | "amber" | "red" | "zinc"]> = {
   open: ["Connected", "green"],
+  not_linked: ["No number linked", "zinc"],
   qr: ["Waiting for QR scan", "amber"],
   connecting: ["Connecting…", "amber"],
   starting: ["Starting…", "amber"],
@@ -24,7 +25,7 @@ const LABEL: Record<Status["status"], [string, "green" | "amber" | "red" | "zinc
 export function LinkStatus({ initial }: { initial: Status }) {
   const [s, setS] = useState(initial);
   useEffect(() => {
-    if (s.status === "unavailable") return;
+    if (s.status === "unavailable" || s.status === "not_linked") return;
     const t = setInterval(async () => {
       try {
         const r = await fetch("/api/whatsapp/status", { cache: "no-store" });

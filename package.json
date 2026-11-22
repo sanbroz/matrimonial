@@ -8,11 +8,14 @@
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed",
+    "db:seed": "tsx --env-file=.env ops/migrate-all.ts",
     "db:studio": "prisma studio",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:seed-demo": "tsx --env-file=.env prisma/seed-demo.ts"
+    "db:seed-demo": "tsx --env-file=.env prisma/seed-demo.ts",
+    "postinstall": "prisma generate && prisma generate --schema prisma/platform/schema.prisma",
+    "db:generate": "prisma generate && prisma generate --schema prisma/platform/schema.prisma",
+    "db:migrate-all": "tsx --env-file=.env ops/migrate-all.ts"
   },
   "dependencies": {
     "@fontsource/noto-sans-gurmukhi": "^5.3.0",
@@ -25,6 +28,7 @@
     "next": "15.5.29",
     "nodemailer": "^10.6.1",
     "papaparse": "^5.7.1",
+    "pg": "^8.23.1",
     "prisma": "6.19.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -37,6 +41,7 @@
     "@types/node": "^24.19.2",
     "@types/nodemailer": "^8.0.2",
     "@types/papaparse": "^5.5.2",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
@@ -51,8 +56,5 @@
     "@prisma/client@6.19.3": true,
     "@prisma/engines@6.19.3": true,
     "esbuild@0.28.2": true
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
   }
 }

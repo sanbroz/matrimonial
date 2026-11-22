@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { appVersion } from "@/lib/version";
 import { logoutAction } from "@/app/login/actions";
 import { NavLinks } from "./nav-links";
-import { UpdateNotice } from "./update-notice";
+import { UpdateNotice } from "@/components/update-notice";
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -26,7 +26,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
           <form action={logoutAction}>
             <button className="text-sm text-zinc-500 hover:text-zinc-900">Sign out</button>
           </form>
-          <UpdateNotice initial={appVersion} isOwner={isOwner} screen="desktop" />
+          <UpdateNotice initial={appVersion} isOwner={false} screen="desktop" />
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-4 py-5 md:px-8 md:py-7">
@@ -35,7 +35,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
           <form action={logoutAction}>
             <button className="text-sm text-zinc-500">Sign out</button>
           </form>
-          <UpdateNotice initial={appVersion} isOwner={isOwner} screen="mobile" />
+          <UpdateNotice initial={appVersion} isOwner={false} screen="mobile" />
         </div>
       </main>
     </div>

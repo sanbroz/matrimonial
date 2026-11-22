@@ -107,21 +107,25 @@ function startAppUpdate() {
 }
 
 // ───────────── WhatsApp library (Baileys) update ─────────────
+/** Library version + every bureau's session ({ library, sessions: [{ slug, status }] }), or null. */
 async function waStatus() {
   try {
-    const r = await fetch("http://whatsapp:8788/status", { headers: { "x-whatsapp-token": WA_TOKEN }, signal: AbortSignal.timeout(5000) });
-    return r.ok ? await r.json() : null;
+    const get = (p) => fetch(`http://whatsapp:8788${p}`, { headers: { "x-whatsapp-token": WA_TOKEN }, signal: AbortSignal.timeout(5000) });
+    const [l, s] = await Promise.all([get("/library"), get("/sessions")]);
+    if (!l.ok || !s.ok) return null;
+    return { library: await l.json(), sessions: await s.json() };
   } catch {
     return null;
   }
 }
+const openSlugs = (st) => (st?.sessions ?? []).filter((x) => x.status === "open").map((x) => x.slug);
 
 const DC = "docker compose --env-file .env.production -f docker-compose.prod.yml";
 const rebuildWhatsApp = (run) => sh(run, `${DC} build whatsapp && ${DC} up -d whatsapp`);
 
 /**
- * Wait until the WhatsApp container runs `version`. If it was connected before, also wait
- * until it is connected again (the linked phone must still work with the new library).
+ * Wait until the WhatsApp container runs `version` and every bureau that was connected before
+ * is connected again (their linked phones must still work with the new library).
  */
 async function waitHealthy(version, mustReconnect, run) {
   const until = Date.now() + RECONNECT_WAIT_MS;
@@ -132,18 +136,20 @@ async function waitHealthy(version, mustReconnect, run) {
     if (!s) continue;
     last = s;
     if (s.library?.installed !== version) continue;
-    if (!mustReconnect) return { ok: true };
-    if (s.status === "open") return { ok: true };
-    if (s.status === "qr" || s.status === "logged_out") return { ok: false, why: "the new version asked to link the phone again" };
+    const byslug = new Map(s.sessions.map((x) => [x.slug, x.status]));
+    const lost = mustReconnect.filter((slug) => ["qr", "not_linked"].includes(byslug.get(slug)));
+    if (lost.length) return { ok: false, why: `the new version asked to link the phone again (${lost.join(", ")})` };
+    if (mustReconnect.every((slug) => byslug.get(slug) === "open")) return { ok: true };
   }
-  run.log.push(`[updater] last WhatsApp status: ${last ? `${last.status} (${last.library?.installed})` : "no answer"}`);
+  const now = last ? openSlugs(last) : [];
+  run.log.push(`[updater] last WhatsApp status: ${last ? `${now.length}/${mustReconnect.length} reconnected (${last.library?.installed})` : "no answer"}`);
   return { ok: false, why: `WhatsApp did not reconnect within ${RECONNECT_WAIT_MS / 60000} minutes` };
 }
 
 async function runBaileysUpdate(target, { isRollback = false } = {}) {
   const before = await waStatus();
   const from = before?.library?.installed ?? null;
-  const wasConnected = before?.status === "open";
+  const wasConnected = openSlugs(before); // bureaus that must reconnect
   const previousOverride = await readEnv("BAILEYS_VERSION");
   Object.assign(baileys, newRun(), {
     status: "running", startedAt: new Date().toISOString(), target, from, rolledBack: false, message: null,
@@ -174,7 +180,7 @@ async function runBaileysUpdate(target, { isRollback = false } = {}) {
       rolledBack: true,
       message: back.ok
         ? `Update to ${target} failed (${health.why}). Rolled back to ${from}; WhatsApp is working as before.`
-        : `Update to ${target} failed (${health.why}) and the rollback did not fully recover. Check Settings → WhatsApp.`,
+        : `Update to ${target} failed (${health.why}) and the rollback did not fully recover. Check the console → Updates.`,
     });
     say(baileys.message);
   }

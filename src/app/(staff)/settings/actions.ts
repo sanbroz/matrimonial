@@ -204,10 +204,10 @@ export async function saveOptionList(fd: FormData) {
         .filter(Boolean),
     ),
   ];
-  await prisma.$transaction([
-    prisma.optionItem.deleteMany({ where: { category } }),
-    prisma.optionItem.createMany({ data: values.map((value, i) => ({ category, value, sortOrder: i })) }),
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.optionItem.deleteMany({ where: { category } });
+    await tx.optionItem.createMany({ data: values.map((value, i) => ({ category, value, sortOrder: i })) });
+  });
   revalidatePath("/settings/lists");
   redirect(`/settings/lists?cat=${category}&ok=${encodeURIComponent(`Saved ${values.length} values`)}`);
 }
