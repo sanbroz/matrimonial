@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth/server";
 import { sendEmail, textToHtml, type EmailAttachment } from "@/lib/services/email";
 import { sendWhatsApp } from "@/lib/services/whatsapp";
+import { readUpload } from "@/lib/storage";
 
 type Result = { ok: boolean; error?: string; note?: string };
 const CHANNEL = z.enum(["whatsapp", "email"]);
@@ -122,6 +123,43 @@ export async function sendReminder(fd: FormData): Promise<Result> {
     const r = await sendWhatsApp({ phone: str(fd, "to"), text: str(fd, "text"), kind, profileId, userId: user.id });
     revalidatePath(`/profiles/${profileId}`);
     return r.ok ? { ok: true, note: "Reminder sent on WhatsApp." } : { ok: false, error: r.error };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Not sent" };
+  }
+}
+
+/** Send the bureau's payment details (UPI / bank / QR image) to a lead or a profile's family. */
+export async function sendPaymentDetails(fd: FormData): Promise<Result> {
+  const user = await requireUser();
+  try {
+    const channel = CHANNEL.parse(fd.get("channel"));
+    const profileId = str(fd, "profileId") || null;
+    const leadId = str(fd, "leadId") || null;
+    const s = await prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { paymentQrPath: true } });
+    const qr = s.paymentQrPath ? await readUpload(s.paymentQrPath).catch(() => null) : null;
+    const file = qr ? { buf: qr.data, type: qr.type, name: `payment-qr${qr.type === "image/png" ? ".png" : ".jpg"}` } : null;
+    let r;
+    if (channel === "whatsapp") {
+      r = await sendWhatsApp({ phone: str(fd, "to"), text: str(fd, "text"), image: file?.buf, kind: "payment_details", profileId, userId: user.id });
+    } else {
+      r = await sendEmail({
+        to: str(fd, "to"),
+        subject: str(fd, "subject") || "Payment details",
+        text: str(fd, "text"),
+        html: textToHtml(str(fd, "text")),
+        attachments: file ? [{ filename: file.name, content: file.buf, contentType: file.type }] : [],
+        kind: "payment_details",
+        profileId,
+        userId: user.id,
+      });
+    }
+    if (!r.ok) return { ok: false, error: r.error };
+    if (leadId) {
+      await prisma.note.create({ data: { kind: channel === "whatsapp" ? "WHATSAPP" : "OTHER", body: `Payment details sent by ${channel === "whatsapp" ? "WhatsApp" : "email"}`, leadId, authorId: user.id } });
+      revalidatePath(`/leads/${leadId}`);
+    }
+    if (profileId) revalidatePath(`/profiles/${profileId}`);
+    return { ok: true, note: "Payment details sent." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Not sent" };
   }

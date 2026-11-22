@@ -72,7 +72,7 @@ export default async function BiodataPage({
               Biodata <span className="font-mono text-brand-700">{profile.code}</span>
             </h1>
             <p className="text-sm text-zinc-500">
-              Shows the profile code only. Name, parents&apos; names, phone and address are never included.
+              {options.showName === "none" ? "Shows the profile code only (no name)." : `Shows the ${options.showName === "first" ? "first" : "full"} name and profile code.`} Parents&apos; names, phone and address are never included.
             </p>
           </div>
           <div className="flex gap-2">

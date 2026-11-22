@@ -57,6 +57,32 @@ export default async function BureauSettingsPage({ searchParams }: { searchParam
         </div>
       </Card>
 
+      <Card title="Payment details (sent to clients)">
+        <p className="mb-3 text-sm text-zinc-600">
+          Sent with <strong>Send payment details</strong> on a lead or profile, so families can pay you directly. Fill in what you use.
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="UPI ID" hint="e.g. yourbureau@okhdfcbank"><input name="paymentUpi" defaultValue={s.paymentUpi ?? ""} className={inputClass} /></Field>
+          <Field label="Note (optional)" hint="e.g. Registration fee ₹1,100"><input name="paymentNote" defaultValue={s.paymentNote ?? ""} className={inputClass} /></Field>
+          <Field label="Bank details" hint="Account name, account number, IFSC, bank and branch" className="sm:col-span-2">
+            <textarea name="paymentBank" rows={3} defaultValue={s.paymentBank ?? ""} className={inputClass} />
+          </Field>
+          <div className="sm:col-span-2">
+            <span className="mb-1 block text-xs font-medium text-zinc-600">UPI QR code (image)</span>
+            <div className="flex flex-wrap items-center gap-4">
+              {s.paymentQrPath && (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={fileUrl(s.paymentQrPath)} alt="UPI QR code" className="size-24 rounded border border-zinc-200 bg-white object-contain p-1" />
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="removePaymentQr" /> Remove QR code</label>
+                </>
+              )}
+              <input type="file" name="paymentQr" accept="image/png,image/jpeg,image/webp" className="text-sm" aria-label="UPI QR code image" />
+            </div>
+          </div>
+        </div>
+      </Card>
+
       <Card title="How you work">
         <label className="flex items-start gap-3 text-sm">
           <input type="checkbox" name="trackMeetings" defaultChecked={s.trackMeetings} className="mt-0.5 size-4 accent-brand-600" />

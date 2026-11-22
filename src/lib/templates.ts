@@ -15,6 +15,9 @@ export const TEMPLATE_KEYS = {
   shareWhatsApp: "WhatsApp: several biodatas (share link)",
   shareEmailSubject: "Email: several biodatas subject",
   shareEmailBody: "Email: several biodatas message",
+  paymentWhatsApp: "WhatsApp / email: payment details",
+  paymentEmailSubject: "Email: payment details subject",
+  formLinkWhatsApp: "WhatsApp / email: link to fill in their profile",
 } as const;
 
 export type TemplateKey = keyof typeof TEMPLATE_KEYS;
@@ -33,6 +36,9 @@ export const TEMPLATE_VARS: Record<TemplateKey, string[]> = {
   shareWhatsApp: ["name", "count", "codes", "link", "valid_till", "bureau", "bureau_phone"],
   shareEmailSubject: ["count", "bureau"],
   shareEmailBody: ["name", "count", "codes", "link", "valid_till", "bureau", "bureau_phone"],
+  paymentWhatsApp: ["name", "payment_details", "bureau", "bureau_phone"],
+  paymentEmailSubject: ["bureau"],
+  formLinkWhatsApp: ["name", "link", "valid_till", "bureau", "bureau_phone"],
 };
 
 export const DEFAULT_TEMPLATES: Templates = {
@@ -55,6 +61,11 @@ export const DEFAULT_TEMPLATES: Templates = {
   shareEmailSubject: "{count} matching profiles from {bureau}",
   shareEmailBody:
     "Sat Sri Akal {name} ji,\n\nHere are {count} profiles that may suit your family ({codes}). View them online:\n{link}\n(the link works until {valid_till}). The PDF is attached as well.\n\nDo let us know which ones you would like to take forward.\n\nRegards,\n{bureau}\n{bureau_phone}",
+  paymentWhatsApp:
+    "Sat Sri Akal {name} ji 🙏\nYou can pay {bureau} by:\n\n{payment_details}\n\nPlease send us a screenshot once paid. Thank you!\n— {bureau} {bureau_phone}",
+  paymentEmailSubject: "Payment details for {bureau}",
+  formLinkWhatsApp:
+    "Sat Sri Akal {name} ji 🙏\nPlease fill in your profile details here (it takes about 10 minutes):\n{link}\nThe link works until {valid_till}. You can add photos too.\n— {bureau} {bureau_phone}",
 };
 
 export function readTemplates(json: unknown): Templates {
@@ -78,4 +89,16 @@ export function renderTemplate(tpl: string, vars: Record<string, string | number
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+/** The bureau's payment details as one block for {payment_details} (only what is filled in). */
+export function paymentDetailsText(s: { paymentUpi: string | null; paymentBank: string | null; paymentNote: string | null }, hasQr = false): string {
+  return [
+    s.paymentUpi && `UPI: ${s.paymentUpi}`,
+    hasQr && "(or scan the QR code)",
+    s.paymentBank && `Bank transfer:\n${s.paymentBank}`,
+    s.paymentNote,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }

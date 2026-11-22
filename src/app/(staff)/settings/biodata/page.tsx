@@ -32,6 +32,13 @@ export default async function BiodataSettingsPage({ searchParams }: { searchPara
           </Field>
           <Field label="Header line" hint="e.g. ੴ ਸਤਿਗੁਰ ਪ੍ਰਸਾਦਿ or ॐ, or leave blank"><input name="headerText" defaultValue={o.headerText} className={inputClass} /></Field>
           <Field label="Footer text" hint="e.g. 'Contact the bureau for details'"><input name="footerText" defaultValue={o.footerText} className={inputClass} /></Field>
+          <Field label="Name on the biodata" hint="Can be changed each time you share. Phones and addresses are never shown.">
+            <select name="showName" defaultValue={o.showName} className={inputClass}>
+              <option value="none">Profile code only</option>
+              <option value="first">First name</option>
+              <option value="full">Full name</option>
+            </select>
+          </Field>
           <label className="flex items-center gap-2 text-sm sm:col-span-2">
             <input type="checkbox" name="showBureauContact" defaultChecked={o.showBureauContact} className="size-4 accent-brand-600" />
             Show the bureau&apos;s phone and WhatsApp number on the biodata

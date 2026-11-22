@@ -64,6 +64,7 @@ export default async function ShareLinksPage({ searchParams }: { searchParams: P
                 if (l.forProfileId) q.set("for", l.forProfileId);
                 q.set("layout", l.layout);
                 q.set("lang", l.lang);
+                q.set("name", l.nameMode);
                 l.sections.forEach((s) => q.append("sections", s));
                 return (
                   <tr key={l.id} className="align-top">

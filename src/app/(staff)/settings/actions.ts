@@ -11,6 +11,7 @@ import { BIODATA_SECTIONS, biodataOptionsSchema } from "@/lib/biodata-options";
 import { OPTION_CATEGORIES } from "@/lib/options-defaults";
 import { matchingOptionsSchema } from "@/lib/matching";
 import { MAX_FAVICON_BYTES, faviconType } from "@/lib/favicon";
+import { LOCKED_FIELDS, PROFILE_FIELDS, inputName } from "@/lib/profile-fields";
 import { setSessionCookie } from "@/lib/auth/cookie";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -46,6 +47,9 @@ export async function saveBureauSettings(fd: FormData) {
       ...(counterEdited ? { nextProfileNumber: nextNum } : {}),
       registrationFee: money(fd, "registrationFee"),
       trackMeetings: fd.get("trackMeetings") === "on",
+      paymentUpi: optStr(fd, "paymentUpi"),
+      paymentBank: optStr(fd, "paymentBank"),
+      paymentNote: optStr(fd, "paymentNote"),
       successFeeDefault: money(fd, "successFeeDefault"),
       receiptPrefix: str(fd, "receiptPrefix").toUpperCase() || "R",
     },
@@ -61,6 +65,22 @@ export async function saveBureauSettings(fd: FormData) {
     } catch (e) {
       back("/settings", e instanceof UploadError ? e.message : "Logo upload failed", "error");
     }
+  }
+  const qr = fd.get("paymentQr");
+  if (qr instanceof File && qr.size > 0) {
+    const current = await prisma.settings.findUnique({ where: { id: 1 }, select: { paymentQrPath: true } });
+    try {
+      const path = await saveUpload(qr, "branding", IMAGE_TYPES);
+      await prisma.settings.update({ where: { id: 1 }, data: { paymentQrPath: path } });
+      await deleteUpload(current?.paymentQrPath);
+    } catch (e) {
+      back("/settings", e instanceof UploadError ? e.message : "QR code upload failed", "error");
+    }
+  }
+  if (fd.get("removePaymentQr") === "on") {
+    const current = await prisma.settings.findUnique({ where: { id: 1 }, select: { paymentQrPath: true } });
+    await prisma.settings.update({ where: { id: 1 }, data: { paymentQrPath: null } });
+    await deleteUpload(current?.paymentQrPath);
   }
   const icon = fd.get("favicon");
   if (icon instanceof File && icon.size > 0) {
@@ -93,6 +113,7 @@ export async function saveBiodataSettings(fd: FormData) {
     defaultLanguage: str(fd, "defaultLanguage"),
     sections: Object.keys(BIODATA_SECTIONS).filter((k) => fd.get(`section.${k}`) === "on"),
     showBureauContact: fd.get("showBureauContact") === "on",
+    showName: (["none", "first", "full"] as const).find((m) => m === fd.get("showName")) ?? "none",
   });
   await prisma.settings.update({ where: { id: 1 }, data: { biodataOptions: options } });
   revalidatePath("/settings/biodata");
@@ -223,4 +244,15 @@ export async function saveOptionList(fd: FormData) {
   });
   revalidatePath("/settings/lists");
   redirect(`/settings/lists?cat=${category}&ok=${encodeURIComponent(`Saved ${values.length} values`)}`);
+}
+
+// ───────────── Profile fields ─────────────
+
+export async function saveFieldSettings(fd: FormData) {
+  await requireOwner();
+  const used = new Set(fd.getAll("use").map(String));
+  const hidden = PROFILE_FIELDS.map(inputName).filter((n) => !used.has(n) && !LOCKED_FIELDS.includes(n));
+  await prisma.settings.update({ where: { id: 1 }, data: { hiddenFields: hidden } });
+  revalidatePath("/", "layout");
+  back("/settings/fields", hidden.length ? `Saved. ${hidden.length} field${hidden.length === 1 ? "" : "s"} switched off.` : "Saved. All fields are in use.");
 }

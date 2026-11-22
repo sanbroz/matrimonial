@@ -122,44 +122,48 @@ function Photo({ url, w, h, accent }: { url?: string; w: number; h: number; acce
 
 function Head({ c, accent, size = 16 }: { c: BiodataContent; accent: string; size?: number }) {
   return (
-    <div className="flex items-baseline justify-between gap-2">
-      <div className="font-bold" style={{ color: accent, fontSize: size }}>{c.title}</div>
-      <div className="font-mono font-bold" style={{ fontSize: size - 1 }}>{c.code}</div>
+    <div>
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="min-w-0 truncate font-bold" style={{ color: accent, fontSize: size }}>{c.name ?? c.title}</div>
+        <div className="shrink-0 font-mono font-bold" style={{ fontSize: size - 1 }}>{c.code}</div>
+      </div>
+      {c.name && <div className="text-[11px] text-zinc-500">{c.title}</div>}
     </div>
   );
 }
 
+/** Label / value rows in a fixed label column, so values line up across rows and profiles. One line each. */
+function FactGrid({ rows, cols, labelWidth }: { rows: (readonly [string, string])[]; cols: 1 | 2; labelWidth: number }) {
+  const template = cols === 2 ? `${labelWidth}px minmax(0,1fr) ${labelWidth}px minmax(0,1fr)` : `${labelWidth}px minmax(0,1fr)`;
+  return (
+    <div className="grid gap-x-2 gap-y-[3px] leading-[17px]" style={{ gridTemplateColumns: template }}>
+      {rows.map(([k, v]) => (
+        <div key={k} className="contents">
+          <div className="truncate text-zinc-500">{k}</div>
+          <div className="truncate font-medium text-zinc-900" title={v}>{v}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 3 per page: every block the same height (a third of the page), photo + two columns of details. */
 function TwoUp({ items, accent, lang }: { items: SheetItem[]; accent: string; lang: "en" | "pa" }) {
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="grid h-full grid-rows-3 gap-3">
       {items.map((it) => {
-        // Main fields first, then everything else that is being shared (fills the half page)
+        // Main fields first, then everything else that is being shared
         const main = facts(it.content, TWO_UP_FIELDS, lang);
         const seen = new Set<string>(main.map(([k]) => k));
         const rest = it.content.sections.filter((s) => !s.text).flatMap((s) => s.rows).filter(([k]) => !seen.has(k));
-        const rows = [...main, ...rest].slice(0, it.photoUrls[0] ? 22 : 30);
-        const about = it.content.sections.find((s) => s.key === "about")?.text;
+        const rows = [...main, ...rest].slice(0, it.photoUrls[0] ? 22 : 26);
         return (
-          <div key={it.id} className="flex flex-1 gap-4 rounded-lg p-3" style={{ border: `1px solid ${accent}40` }}>
-            <Photo url={it.photoUrls[0]} w={180} h={235} accent={accent} />
+          <div key={it.id} className="flex min-h-0 gap-4 overflow-hidden rounded-lg p-3" style={{ border: `1px solid ${accent}40` }}>
+            <Photo url={it.photoUrls[0]} w={160} h={208} accent={accent} />
             <div className="min-w-0 flex-1">
-              <Head c={it.content} accent={accent} size={18} />
-              {it.content.summary && <div className="mt-0.5 text-[12px] text-zinc-600">{it.content.summary}</div>}
-              {about && <p className="mt-2 line-clamp-3 rounded bg-zinc-50 p-2 text-[11px] italic text-zinc-700">{about}</p>}
-              <table className="mt-2 w-full">
-                <tbody>
-                  {chunk(rows, 2).map((pair, i) => (
-                    <tr key={i} className="align-top">
-                      {pair.map(([k, v]) => (
-                        <td key={k} className="w-1/2 py-[2px] pr-3">
-                          <span className="text-zinc-500">{k}: </span>
-                          <span className="font-medium text-zinc-900">{v}</span>
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <Head c={it.content} accent={accent} size={17} />
+              {it.content.summary && <div className="mb-2 mt-0.5 truncate text-[12px] text-zinc-600">{it.content.summary}</div>}
+              <FactGrid rows={rows} cols={2} labelWidth={it.photoUrls[0] ? 92 : 108} />
             </div>
           </div>
         );
@@ -168,23 +172,20 @@ function TwoUp({ items, accent, lang }: { items: SheetItem[]; accent: string; la
   );
 }
 
+/** 6 per page in a fixed 2 × 3 grid: every card the same size, details aligned. */
 function Cards({ items, accent, lang }: { items: SheetItem[]; accent: string; lang: "en" | "pa" }) {
   return (
-    <div className="grid h-full grid-cols-2 grid-rows-2 gap-3">
+    <div className="grid h-full grid-cols-2 grid-rows-3 gap-3">
       {items.map((it) => {
-        const rows = facts(it.content, CARD_FIELDS, lang).slice(0, it.photoUrls[0] ? 12 : 16);
+        const photo = it.photoUrls[0];
+        const rows = facts(it.content, CARD_FIELDS, lang).slice(0, 12);
         return (
-          <div key={it.id} className="flex flex-col rounded-lg p-3" style={{ border: `1px solid ${accent}40` }}>
+          <div key={it.id} className="flex min-h-0 flex-col overflow-hidden rounded-lg p-3" style={{ border: `1px solid ${accent}40` }}>
             <Head c={it.content} accent={accent} size={14} />
-            <div className="mt-2 flex gap-3">
-              <Photo url={it.photoUrls[0]} w={110} h={145} accent={accent} />
-              <div className="min-w-0 flex-1 space-y-[3px] text-[12.5px]">
-                {rows.map(([k, v]) => (
-                  <div key={k}>
-                    <span className="text-zinc-500">{k}: </span>
-                    <span className="font-medium text-zinc-900">{v}</span>
-                  </div>
-                ))}
+            <div className="mt-2 flex min-h-0 gap-3 text-[12px]">
+              <Photo url={photo} w={96} h={124} accent={accent} />
+              <div className="min-w-0 flex-1">
+                <FactGrid rows={rows} cols={1} labelWidth={photo ? 82 : 100} />
               </div>
             </div>
           </div>
@@ -228,6 +229,7 @@ function List({ items, accent, lang }: { items: SheetItem[]; accent: string; lan
             )}
             <td className="py-2 pr-2">
               <div className="font-mono text-[13px] font-bold">{it.content.code}</div>
+              {it.content.name && <div className="text-[12px] font-semibold text-zinc-900">{it.content.name}</div>}
               <div className="text-[11px] text-zinc-500">{it.content.title}</div>
             </td>
             {cols.map((c) => (

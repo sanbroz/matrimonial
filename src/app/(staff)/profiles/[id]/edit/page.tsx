@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { loadOptions } from "@/lib/services/profiles";
+import { hiddenProfileFields } from "@/lib/services/workflow";
 import { profileToFormValues } from "@/lib/profile-form-values";
 import { PageHeader } from "@/components/ui";
 import { ProfileForm } from "../../profile-form";
@@ -27,6 +28,7 @@ export default async function EditProfilePage({ params }: { params: Promise<{ id
         initial={profileToFormValues(rest, preference)}
         options={options}
         cancelHref={`/profiles/${profile.id}`}
+        hiddenFields={await hiddenProfileFields()}
         submitLabel="Save changes"
       />
     </>

@@ -109,6 +109,14 @@ and `/api/health` is there for uptime monitoring.
 - Message texts are editable in Settings → Message templates. Every message is logged on the profile.
 - Setup steps: DEPLOY.md, "Email and WhatsApp".
 
+## Families, fields and payments (v2.5)
+
+- **Name on shared biodatas:** profile code only (default), first name or full name. Set the default in Settings → Biodata; change it each time you share. Phones, addresses and parents' names are never included.
+- **Share layouts:** 6 cards or 3 detailed blocks per page, every block the same size, with labels and values aligned in columns.
+- **Settings → Fields:** switch off the profile fields your bureau doesn't use. They disappear from the forms, and data already in them is kept. Name, gender, date of birth and phone are always used.
+- **Payment details:** set UPI ID, bank details and a QR code in Settings → Bureau. **Send payment details** (WhatsApp with the QR, or email) is on every lead and in a profile's payments.
+- **Family fills in their profile:** on a profile (or its converted lead), create a link. The family fills in or corrects their details and adds photos, with no login. Staff get a note and a "Check details" follow-up. Only the bureau's profile fields can be changed (never status or internal flags). Links expire and can be switched off.
+
 ## Simpler daily work (v2.4)
 
 - **Dashboard:**

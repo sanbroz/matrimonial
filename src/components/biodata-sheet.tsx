@@ -75,7 +75,8 @@ export function BiodataSheet({
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="text-[26px] font-bold" style={{ color: accent }}>{content.title}</h1>
+          <h1 className="text-[26px] font-bold" style={{ color: accent }}>{content.name ?? content.title}</h1>
+          {content.name && <div className="text-[14px] font-medium text-zinc-500">{content.title}</div>}
           <p className="mt-1 text-[14px] text-zinc-600">{content.summary}</p>
           {textSections.filter((s) => s.key === "about").map((s) => (
             <p key={s.key} className="mt-4 whitespace-pre-wrap rounded-md bg-zinc-50 p-3 text-[13px] italic text-zinc-700">{s.text}</p>

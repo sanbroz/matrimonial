@@ -28,11 +28,19 @@ export function profileToFormValues(
   return out;
 }
 
-/** FormData → raw values keyed by input name (checkboxes missing = unchecked). */
-export function formDataToValues(fd: FormData): FormValues {
+/**
+ * FormData → raw values keyed by input name (checkboxes missing = unchecked).
+ * Only the fields the form actually showed (its "_fields" list) are read, so fields a bureau
+ * switched off (or that a family's form doesn't show) are left exactly as they are, not blanked.
+ * `allowed` limits it further (the family's self-fill form).
+ */
+export function formDataToValues(fd: FormData, allowed?: Set<string>): FormValues {
   const out: FormValues = {};
+  const shown = fd.has("_fields") ? new Set(String(fd.get("_fields")).split(",")) : null;
   for (const f of PROFILE_FIELDS) {
     const name = inputName(f);
+    if (shown && !shown.has(name)) continue;
+    if (allowed && !allowed.has(name)) continue;
     if (f.type === "maritalList") out[name] = fd.getAll(name).map(String);
     else if (f.type === "bool") out[name] = fd.get(name) === "on";
     else out[name] = String(fd.get(name) ?? "");

@@ -7,8 +7,8 @@ import type { LabelKey } from "./biodata-i18n";
 
 export const LAYOUTS = {
   full: { label: "Full biodata", hint: "One A4 page per profile", perPage: 1 },
-  two: { label: "2 per page", hint: "Photo and main details, two profiles on each page", perPage: 2 },
-  cards: { label: "4 per page", hint: "Small cards with the key facts", perPage: 4 },
+  two: { label: "3 per page", hint: "Photo and details, three profiles on each page", perPage: 3 },
+  cards: { label: "6 per page", hint: "Cards with the key facts, six on each page", perPage: 6 },
   list: { label: "List", hint: "A compact table, 8 profiles per page", perPage: 8 },
 } as const;
 export type Layout = keyof typeof LAYOUTS;
@@ -26,16 +26,20 @@ export const PRESETS: Record<string, { label: string; sections: BiodataSection[]
 export const SHARE_EXPIRY_DAYS = [3, 7, 14, 30] as const;
 export const MAX_SHARE_PROFILES = 40;
 
+export type NameMode = "none" | "first" | "full";
+export const NAME_MODES: Record<NameMode, string> = { none: "Profile code only", first: "First name", full: "Full name" };
+
 export interface ShareOptions {
   layout: Layout;
   sections: BiodataSection[];
   lang: "en" | "pa";
+  nameMode: NameMode;
 }
 
 /** From URL search params (or a stored link). Unknown values fall back to defaults. */
 export function readShareOptions(
-  input: { layout?: string | null; sections?: string[] | string | null; lang?: string | null; preset?: string | null },
-  defaults: { sections: BiodataSection[]; lang: "en" | "pa" },
+  input: { layout?: string | null; sections?: string[] | string | null; lang?: string | null; preset?: string | null; name?: string | null },
+  defaults: { sections: BiodataSection[]; lang: "en" | "pa"; nameMode?: NameMode },
   count = 1,
 ): ShareOptions {
   const layout = (input.layout && input.layout in LAYOUTS ? input.layout : count > 1 ? "two" : "full") as Layout;
@@ -50,7 +54,8 @@ export function readShareOptions(
     sections = defaults.sections;
   }
   const lang = input.lang === "pa" || input.lang === "en" ? input.lang : defaults.lang;
-  return { layout, sections: ALL_SECTIONS.filter((s) => sections.includes(s)), lang };
+  const nameMode = (input.name && input.name in NAME_MODES ? input.name : defaults.nameMode ?? "none") as NameMode;
+  return { layout, sections: ALL_SECTIONS.filter((s) => sections.includes(s)), lang, nameMode };
 }
 
 /** Which preset (if any) the chosen sections equal. */

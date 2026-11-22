@@ -20,6 +20,8 @@ const TENANT_PUBLIC = [
   /^\/api\/favicon$/,
   // Share links (checked by the page / routes themselves)
   /^\/s\/[A-Za-z0-9_-]+(\/(p\/[a-z0-9]+|logo))?$/,
+  // A family's self-fill profile form (checked by the page and its actions)
+  /^\/f\/[A-Za-z0-9_-]+$/,
 ];
 const CONSOLE_PUBLIC = [/^\/console\/login$/];
 

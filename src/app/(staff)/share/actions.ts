@@ -43,7 +43,7 @@ async function recordShared(clientId: string, candidateIds: string[], userId: st
 function shareUrl(fd: FormData, extra: Record<string, string>) {
   const q = new URLSearchParams();
   for (const id of ids(fd)) q.append("id", id);
-  for (const k of ["for", "layout", "lang"]) if (str(fd, k)) q.set(k, str(fd, k));
+  for (const k of ["for", "layout", "lang", "name"]) if (str(fd, k)) q.set(k, str(fd, k));
   for (const s of fd.getAll("sections")) q.append("sections", String(s));
   for (const [k, v] of Object.entries(extra)) q.set(k, v);
   return `/share?${q.toString()}`;
@@ -56,8 +56,8 @@ export async function createShareLink(fd: FormData) {
   const settings = await prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { biodataOptions: true } });
   const bo = readBiodataOptions(settings.biodataOptions);
   const opts = readShareOptions(
-    { layout: str(fd, "layout"), sections: fd.getAll("sections").map(String), lang: str(fd, "lang") },
-    { sections: bo.sections, lang: bo.defaultLanguage },
+    { layout: str(fd, "layout"), sections: fd.getAll("sections").map(String), lang: str(fd, "lang"), name: str(fd, "name") },
+    { sections: bo.sections, lang: bo.defaultLanguage, nameMode: bo.showName },
     chosen.length,
   );
   const days = Number(str(fd, "days"));
@@ -74,6 +74,7 @@ export async function createShareLink(fd: FormData) {
       layout: opts.layout,
       sections: opts.sections,
       lang: opts.lang,
+      nameMode: opts.nameMode,
       expiresAt: new Date(Date.now() + validDays * 86400000),
       createdById: user.id,
     },

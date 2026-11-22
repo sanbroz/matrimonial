@@ -15,6 +15,8 @@ export type ProfileFormState = {
   message?: string;
   values?: FormValues;
   ts?: number;
+  /** The family's self-fill form was saved */
+  saved?: boolean;
 };
 
 const STATUS = z.enum(["ACTIVE", "ON_HOLD", "MATCHED", "CLOSED"]);

@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { loadOptions } from "@/lib/services/profiles";
+import { hiddenProfileFields } from "@/lib/services/workflow";
 import { PageHeader } from "@/components/ui";
 import type { FormValues } from "@/lib/profile-form-values";
 import { ProfileForm } from "../profile-form";
@@ -46,6 +47,7 @@ export default async function NewProfilePage({ searchParams }: { searchParams: P
         options={options}
         leadId={lead && !lead.profileId ? lead.id : undefined}
         cancelHref={lead ? `/leads/${lead.id}` : "/profiles"}
+        hiddenFields={await hiddenProfileFields()}
         submitLabel="Create profile"
       />
     </>

@@ -10,6 +10,7 @@ const TABS = [
   { href: "/settings/matching", label: "Matching" },
   { href: "/settings/plans", label: "Plans" },
   { href: "/settings/staff", label: "Staff" },
+  { href: "/settings/fields", label: "Fields" },
   { href: "/settings/lists", label: "Lists" },
   { href: "/settings/email", label: "Email" },
   { href: "/settings/whatsapp", label: "WhatsApp" },

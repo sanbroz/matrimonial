@@ -13,7 +13,18 @@ const JPEG_QUALITY = 0.85;
  * them one per request so a big batch never hits a request-size limit.
  * Renders as a dashed "add" tile; size it with className.
  */
-export function PhotoUploader({ profileId, className, label = "Add photos" }: { profileId: string; className?: string; label?: string }) {
+export function PhotoUploader({
+  profileId,
+  className,
+  label = "Add photos",
+  upload = uploadPhoto,
+}: {
+  profileId: string;
+  className?: string;
+  label?: string;
+  /** Where the photo goes (the family's self-fill form uses its own, link-checked action) */
+  upload?: (fd: FormData) => Promise<{ error?: string }>;
+}) {
   const input = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [status, setStatus] = useState<string | null>(null);
@@ -29,7 +40,7 @@ export function PhotoUploader({ profileId, className, label = "Add photos" }: { 
         const fd = new FormData();
         fd.set("profileId", profileId);
         fd.set("photo", await shrinkImage(files[i]));
-        const res = await uploadPhoto(fd);
+        const res = await upload(fd);
         if (res.error) errs.push(`${files[i].name}: ${res.error}`);
       } catch {
         errs.push(`${files[i].name}: upload failed`);

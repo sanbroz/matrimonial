@@ -110,6 +110,13 @@ model Settings {
   receiptPrefix     String   @default("R")
   /// Does the bureau arrange family meetings? Off = profiles are only shared (no meeting stages)
   trackMeetings     Boolean  @default(true)
+  /// Profile fields this bureau doesn't use (input names); hidden on forms, kept in the data
+  hiddenFields      String[] @default([])
+  /// How clients pay the bureau (sent with "Send payment details")
+  paymentUpi        String?
+  paymentBank       String?
+  paymentQrPath     String?
+  paymentNote       String?
   nextReceiptNumber Int      @default(1)
   /// Biodata look & which sections to show (used by the biodata generator).
   biodataOptions    Json?
@@ -338,6 +345,7 @@ model Profile {
   notes         Note[]
   followUps     FollowUp[]
   proposalsSent Proposal[]         @relation("ProposalFrom")
+  formLinks     ProfileFormLink[]
   proposalsGot  Proposal[]         @relation("ProposalTo")
   memberships   Membership[]
   payments      Payment[]
@@ -596,6 +604,8 @@ model ShareLink {
   layout       String
   sections     String[]
   lang         String
+  /// "none" (profile code only), "first" or "full" name on the biodatas
+  nameMode     String    @default("none")
   expiresAt    DateTime
   revokedAt    DateTime?
   views        Int       @default(0)
@@ -605,4 +615,20 @@ model ShareLink {
 
   @@index([createdAt])
   @@index([forProfileId])
+}
+
+/// A link a family uses to fill in or update their own profile (no login). Expires; staff review the changes.
+model ProfileFormLink {
+  id              String    @id @default(cuid())
+  token           String    @unique
+  profileId       String
+  profile         Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  submissions     Int       @default(0)
+  lastSubmittedAt DateTime?
+  createdById     String
+  createdAt       DateTime  @default(now())
+
+  @@index([profileId])
 }

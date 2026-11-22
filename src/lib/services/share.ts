@@ -37,7 +37,7 @@ export async function loadShareItems(ids: string[], opts: ShareOptions) {
     prisma.settings.findUniqueOrThrow({ where: { id: 1 } }),
   ]);
   const base = readBiodataOptions(settings.biodataOptions);
-  const biodataOpts: BiodataOptions = { ...base, sections: opts.sections };
+  const biodataOpts: BiodataOptions = { ...base, sections: opts.sections, showName: opts.nameMode };
   const byId = new Map(profiles.map((p) => [p.id, p]));
   const now = nowIST();
   const withPhotos = opts.sections.includes("photo");

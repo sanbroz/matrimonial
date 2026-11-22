@@ -5,9 +5,9 @@ import Link from "next/link";
 import {
   HEIGHT_OPTIONS,
   MARITAL_LABELS,
-  PROFILE_FIELDS,
   SECTIONS,
   inputName,
+  visibleFields,
   type FieldDef,
 } from "@/lib/profile-fields";
 import type { FormValues } from "@/lib/profile-form-values";
@@ -24,23 +24,35 @@ export function ProfileForm({
   leadId,
   cancelHref,
   submitLabel,
+  hiddenFields,
+  family = false,
+  sections: onlySections,
 }: {
   action: Action;
   initial: FormValues;
   options: Record<string, string[]>;
   leadId?: string;
-  cancelHref: string;
+  cancelHref?: string;
   submitLabel: string;
+  /** Fields the bureau switched off (Settings → Fields) */
+  hiddenFields?: string[];
+  /** The family's own form (share link): no internal status card, no cancel link */
+  family?: boolean;
+  /** Only these sections (family form leaves out internal ones) */
+  sections?: string[];
 }) {
   const [state, formAction] = useActionState(action, {});
   const values = state.values ?? initial;
   const errors = state.errors ?? {};
-  const usedCategories = [...new Set(PROFILE_FIELDS.map((f) => f.options).filter(Boolean))] as string[];
+  const fields = visibleFields(hiddenFields).filter((f) => !onlySections || onlySections.includes(f.section));
+  const usedCategories = [...new Set(fields.map((f) => f.options).filter(Boolean))] as string[];
 
   return (
     // key forces inputs to remount with the submitted values after a failed save
     <form key={state.ts ?? 0} action={formAction} className="space-y-5" noValidate>
       {leadId && <input type="hidden" name="leadId" value={leadId} />}
+      {/* Which fields this form shows: only these are saved (others stay as they are) */}
+      <input type="hidden" name="_fields" value={fields.map(inputName).join(",")} />
       {usedCategories.map((c) => (
         <datalist key={c} id={`opt-${c}`}>
           {(options[c] ?? []).map((v) => (
@@ -50,13 +62,14 @@ export function ProfileForm({
       ))}
 
       {state.message && <Alert>{state.message}</Alert>}
+      {state.saved && <Alert tone="green">Thank you! Your details have been sent to the bureau. You can still change anything and save again.</Alert>}
       {values.showAllowDuplicate && (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="allowDuplicate" /> Save anyway (it is a different person)
         </label>
       )}
 
-      <Card title="Status">
+      {!family && <Card title="Status">
         <div className="flex flex-wrap items-end gap-5">
           <Field label="Profile status" className="w-44">
             <select name="status" defaultValue={String(values.status ?? "ACTIVE")} className={inputClass}>
@@ -77,13 +90,14 @@ export function ProfileForm({
             </label>
           ))}
         </div>
-      </Card>
+      </Card>}
 
-      {SECTIONS.map((s) => (
-        <Card key={s.key} title={s.title}>
-          {s.hint && <p className="mb-3 text-xs text-amber-700">{s.hint}</p>}
+      {SECTIONS.filter((s) => fields.some((f) => f.section === s.key)).map((s) => (
+        <Card key={s.key} title={family && s.key === "contact" ? "Your contact details" : s.title}>
+          {s.hint && !family && <p className="mb-3 text-xs text-amber-700">{s.hint}</p>}
+          {family && s.key === "contact" && <p className="mb-3 text-xs text-zinc-500">Only the bureau sees these. They are never shown to other families.</p>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {PROFILE_FIELDS.filter((f) => f.section === s.key).map((f) => (
+            {fields.filter((f) => f.section === s.key).map((f) => (
               <Field
                 key={inputName(f)}
                 label={f.label + (f.required ? " *" : "")}
@@ -98,11 +112,24 @@ export function ProfileForm({
         </Card>
       ))}
 
+      {family && (
+        <Card>
+          <label className="flex items-start gap-3 text-sm">
+            <input type="checkbox" name="familyConsent" defaultChecked={state.saved} className="mt-0.5 size-4 accent-brand-600" />
+            <span>
+              These details are correct, and we agree that the bureau may keep them and share the biodata (without our phone number or
+              address) with families looking for a match.
+            </span>
+          </label>
+        </Card>
+      )}
+
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-2 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur md:mx-0 md:rounded-lg md:border">
         {/* The error is also shown here, next to Save (the top of a long form is out of view) */}
+        {state.saved && <span className="w-full text-sm text-emerald-700">Saved. Thank you!</span>}
         {state.message && <span className="w-full text-sm text-red-700">{state.message} {Object.keys(errors).length > 0 && `(${Object.keys(errors).length} field${Object.keys(errors).length === 1 ? "" : "s"})`}</span>}
         <SubmitButton>{submitLabel}</SubmitButton>
-        <Link href={cancelHref} className={buttonClass.secondary}>Cancel</Link>
+        {cancelHref && <Link href={cancelHref} className={buttonClass.secondary}>Cancel</Link>}
       </div>
     </form>
   );

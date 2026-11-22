@@ -7,7 +7,7 @@ import { tenantBaseUrl } from "@/lib/tenant/registry";
 import { prisma } from "@/lib/db";
 import { fileUrl } from "@/lib/storage";
 import { BIODATA_SECTIONS, readBiodataOptions } from "@/lib/biodata-options";
-import { LAYOUTS, MAX_SHARE_PROFILES, PRESETS, SHARE_EXPIRY_DAYS, presetOf, readShareOptions, type Layout } from "@/lib/share";
+import { LAYOUTS, MAX_SHARE_PROFILES, NAME_MODES, PRESETS, SHARE_EXPIRY_DAYS, presetOf, readShareOptions, type Layout, type NameMode } from "@/lib/share";
 import { loadShareItems } from "@/lib/services/share";
 import { messageContext, addressee } from "@/lib/services/message-vars";
 import { isEmailConfigured } from "@/lib/services/email";
@@ -24,7 +24,7 @@ import { createShareLink, recordSharesAction, revokeShareLink, sendShare } from 
 
 export const metadata = { title: "Share profiles" };
 
-type SP = { id?: string | string[]; for?: string; layout?: string; preset?: string; sections?: string | string[]; lang?: string; link?: string; ok?: string; error?: string };
+type SP = { id?: string | string[]; for?: string; layout?: string; preset?: string; sections?: string | string[]; lang?: string; name?: string; link?: string; ok?: string; error?: string };
 const arr = (v: string | string[] | undefined) => (Array.isArray(v) ? v : v ? [v] : []);
 
 export default async function SharePage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -47,8 +47,8 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
   const settings = await prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { biodataOptions: true, logoPath: true } });
   const bo = readBiodataOptions(settings.biodataOptions);
   const opts = readShareOptions(
-    { layout: sp.layout, preset: sp.preset, sections: arr(sp.sections), lang: sp.lang },
-    { sections: bo.sections, lang: bo.defaultLanguage },
+    { layout: sp.layout, preset: sp.preset, sections: arr(sp.sections), lang: sp.lang, name: sp.name },
+    { sections: bo.sections, lang: bo.defaultLanguage, nameMode: bo.showName },
     ids.length,
   );
   const [{ items, branding, biodataOptions, statuses }, client, link, ctx, emailReady, base] = await Promise.all([
@@ -79,6 +79,7 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
     <>
       <input type="hidden" name="layout" value={opts.layout} />
       <input type="hidden" name="lang" value={opts.lang} />
+      <input type="hidden" name="name" value={opts.nameMode} />
       {opts.sections.map((s) => <input key={s} type="hidden" name="sections" value={s} />)}
     </>
   );
@@ -88,6 +89,7 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
     if (client) q.set("for", client.id);
     q.set("layout", opts.layout);
     q.set("lang", opts.lang);
+    q.set("name", opts.nameMode);
     opts.sections.forEach((s) => q.append("sections", s));
     return `/share?${q}`;
   };
@@ -99,7 +101,7 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
       <div className="print:hidden">
         <PageHeader
           title={`Share ${items.length} profile${items.length === 1 ? "" : "s"}`}
-          subtitle={client ? <>With the family of <strong>{client.code}</strong> ({client.fullName})</> : "Biodatas show profile codes only: never names, phones or addresses."}
+          subtitle={client ? <>With the family of <strong>{client.code}</strong> ({client.fullName})</> : "Biodatas never include phone numbers or addresses."}
           actions={
             <>
               <ButtonLink href="/shares">Share links</ButtonLink>
@@ -143,6 +145,7 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
                       if (client) q.set("for", client.id);
                       q.set("layout", opts.layout);
                       q.set("lang", opts.lang);
+                      q.set("name", opts.nameMode);
                       q.set("preset", k);
                       return (
                         <Link key={k} href={`/share?${q}`} className={cx("rounded-full border px-2.5 py-0.5 text-xs", preset === k ? "border-brand-500 bg-brand-50 text-brand-700" : "border-zinc-200 text-zinc-600 hover:bg-zinc-50")}>
@@ -160,7 +163,16 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
                     </label>
                   ))}
                 </div>
-                <p className="mt-1 text-xs text-zinc-500">Names, phone numbers and addresses are never included.</p>
+                <p className="mt-1 text-xs text-zinc-500">Phone numbers, addresses and parents&apos; names are never included.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-medium text-zinc-700">Name</span>
+                {(Object.keys(NAME_MODES) as NameMode[]).map((m) => (
+                  <label key={m} className="flex items-center gap-1.5 text-sm">
+                    <input type="radio" name="name" value={m} defaultChecked={opts.nameMode === m} className="accent-brand-600" />
+                    {NAME_MODES[m]}
+                  </label>
+                ))}
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm font-medium text-zinc-700">Language</span>

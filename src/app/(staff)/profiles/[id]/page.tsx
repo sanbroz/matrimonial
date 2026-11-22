@@ -14,6 +14,7 @@ import { ProposalsPanel } from "./proposals-panel";
 import { MoneyPanel } from "./money-panel";
 import { MessagesLog } from "./messages-log";
 import { countMatches } from "@/lib/services/matching";
+import { FormLinkCard } from "@/components/form-link-card";
 
 export const metadata = { title: "Profile" };
 
@@ -217,6 +218,7 @@ export default async function ProfilePage({
           </Card>
 
           <FollowUpsPanel target={{ profileId: p.id }} followUps={p.followUps} />
+          <FormLinkCard profileId={p.id} returnTo={`/profiles/${p.id}`} />
 
           <Card title="Record">
             <DL

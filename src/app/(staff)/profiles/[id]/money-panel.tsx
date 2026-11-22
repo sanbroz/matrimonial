@@ -12,6 +12,7 @@ import { sendReminder } from "@/lib/actions/messaging";
 import { addressee, messageContext } from "@/lib/services/message-vars";
 import { whatsappConfigured } from "@/lib/services/whatsapp";
 import { renderTemplate } from "@/lib/templates";
+import { PaymentDetailsButtons } from "@/components/payment-details-buttons";
 
 const modeSelect = (
   <select name="mode" className={inputClass} defaultValue="CASH">
@@ -22,7 +23,7 @@ const modeSelect = (
 export async function MoneyPanel({ profileId, isOwner }: { profileId: string; isOwner: boolean }) {
   const [{ memberships, current, dues, payments, plans, registrationFee, introsUsed }, person, ctx] = await Promise.all([
     loadProfileMoney(profileId),
-    prisma.profile.findUnique({ where: { id: profileId }, select: { code: true, fullName: true, contactName: true, phone: true } }),
+    prisma.profile.findUnique({ where: { id: profileId }, select: { code: true, fullName: true, contactName: true, phone: true, email: true } }),
     messageContext(),
   ]);
   const baseVars = { ...ctx.base, name: person ? addressee(person) : "", code: person?.code ?? "" };
@@ -49,6 +50,9 @@ export async function MoneyPanel({ profileId, isOwner }: { profileId: string; is
         }
       >
         <div className="space-y-5">
+          {person && (
+            <PaymentDetailsButtons name={addressee(person)} phone={person.phone} email={person.email} profileId={profileId} />
+          )}
           {/* Membership */}
           <section>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Membership</h3>

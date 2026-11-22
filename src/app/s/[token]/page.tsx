@@ -39,7 +39,7 @@ export default async function SharedProfilesPage({ params }: { params: Promise<{
   }
 
   await prisma.shareLink.updateMany({ where: { id: link.id }, data: { views: { increment: 1 }, lastViewedAt: new Date() } });
-  const opts = readShareOptions({ layout: link.layout as Layout, sections: link.sections, lang: link.lang }, { sections: [], lang: "en" }, link.profileIds.length);
+  const opts = readShareOptions({ layout: link.layout as Layout, sections: link.sections, lang: link.lang, name: link.nameMode }, { sections: [], lang: "en" }, link.profileIds.length);
   const { items, branding, biodataOptions } = await loadShareItems(link.profileIds, opts);
   const pages = sharePageCount(items.length, opts.layout);
   const contact = [settings?.phone, settings?.whatsapp && `WhatsApp ${settings.whatsapp}`].filter(Boolean).join(" · ");

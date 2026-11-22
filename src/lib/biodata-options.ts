@@ -23,6 +23,8 @@ export const biodataOptionsSchema = z.object({
   defaultLanguage: z.enum(["en", "pa"]).catch("en"),
   sections: z.array(z.enum(Object.keys(BIODATA_SECTIONS) as [BiodataSection, ...BiodataSection[]])).catch(Object.keys(BIODATA_SECTIONS) as BiodataSection[]),
   showBureauContact: z.boolean().catch(true),
+  /** Name on shared biodatas: profile code only (default), first name, or full name. Never phones / addresses. */
+  showName: z.enum(["none", "first", "full"]).catch("none"),
 });
 
 export type BiodataOptions = z.infer<typeof biodataOptionsSchema>;

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { findProfileByPhone } from "@/lib/services/profiles";
+import { PaymentDetailsButtons } from "@/components/payment-details-buttons";
+import { FormLinkCard } from "@/components/form-link-card";
 import { formatDateTime } from "@/lib/format";
 import { Alert, ButtonLink, Card, PageHeader } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
@@ -76,6 +78,10 @@ export default async function LeadPage({
         </div>
         <div className="space-y-5">
           <FollowUpsPanel target={{ leadId: lead.id }} followUps={lead.followUps} />
+          <Card title="Send to this family">
+            <PaymentDetailsButtons name={lead.name} phone={lead.phone} leadId={lead.id} profileId={lead.profile?.id} />
+          </Card>
+          {lead.profile && <FormLinkCard profileId={lead.profile.id} returnTo={`/leads/${lead.id}`} />}
           {user.role === "OWNER" && (
             <Card title="Delete lead">
               <form action={deleteLeadAction}>

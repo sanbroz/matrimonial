@@ -1,15 +1,18 @@
 /**
  * Builds biodata content from a profile. Pure function (unit-tested).
  *
- * PRIVACY: the biodata is shared outside the bureau, so it NEVER includes the candidate's
- * name, parents' names, phone numbers, email, address, contact person, employer or
- * native village — only the profile code identifies the person.
+ * PRIVACY: the biodata is shared outside the bureau, so it NEVER includes parents' names,
+ * phone numbers, email, address, contact person, employer or native village. The candidate's
+ * own name only appears when the bureau chooses it (options.showName); otherwise only the
+ * profile code identifies the person.
  */
 import type { BiodataOptions, BiodataSection } from "./biodata-options";
 import { maritalText, t, tv, type Lang, type LabelKey } from "./biodata-i18n";
 
 export interface BiodataProfile {
   code: string;
+  /** Only used when options.showName is "first" / "full" */
+  fullName?: string | null;
   gender: "MALE" | "FEMALE";
   dob: Date | null;
   birthTime: string | null;
@@ -89,6 +92,8 @@ export interface BiodataContent {
   summary: string;
   sections: BiodataSectionOut[];
   contactLabel: string;
+  /** The candidate's name when the bureau shares names (else null) */
+  name: string | null;
   /** Included values by field key (only from the sections being shared), e.g. facts.age */
   facts: Partial<Record<LabelKey, string>>;
 }
@@ -114,6 +119,13 @@ function dateText(d: Date | null, lang: Lang) {
     return `${p(d.getUTCDate())}-${p(d.getUTCMonth() + 1)}-${d.getUTCFullYear()}`;
   }
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+/** "Harpreet Kaur Sandhu" → first: "Harpreet", full: as is. */
+export function nameFor(fullName: string | null | undefined, mode: "none" | "first" | "full" | undefined): string | null {
+  const n = fullName?.trim().replace(/\s+/g, " ");
+  if (!n || !mode || mode === "none") return null;
+  return mode === "first" ? n.split(" ")[0] : n;
 }
 
 const join = (...parts: (string | null | undefined | false)[]) => parts.filter(Boolean).join(", ");
@@ -257,6 +269,7 @@ export function buildBiodata(p: BiodataProfile, opts: BiodataOptions, lang: Lang
       .join(" · "),
     sections,
     contactLabel: L("contact"),
+    name: nameFor(p.fullName, opts.showName),
     facts,
   };
 }

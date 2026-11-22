@@ -174,6 +174,15 @@ export const PROFILE_FIELDS: FieldDef[] = [
 /** Form input name — preference fields are prefixed to avoid clashing keys (education, diet…). */
 export const inputName = (f: FieldDef) => (f.pref ? `pref.${f.key}` : f.key);
 
+/** Fields every bureau keeps (identity, age for matching, phone for duplicates and WhatsApp). */
+export const LOCKED_FIELDS = ["fullName", "gender", "dob", "phone"];
+
+/** Fields shown on forms for a bureau that switched some off (Settings → Fields). */
+export const visibleFields = (hidden: string[] | null | undefined) => {
+  const h = new Set((hidden ?? []).filter((n) => !LOCKED_FIELDS.includes(n)));
+  return PROFILE_FIELDS.filter((f) => !h.has(inputName(f)));
+};
+
 export function parseField(f: FieldDef, raw: unknown): unknown {
   switch (f.type) {
     case "text":
