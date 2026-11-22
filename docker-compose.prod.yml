@@ -47,9 +47,11 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    # Direct on the internet: 80/443 on all interfaces (Caddy gets HTTPS certificates).
+    # Behind Cloudflare Tunnel: HTTP_BIND=127.0.0.1 and one local HTTP_PORT (see DEPLOY.md).
     ports:
-      - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
+      - "${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-80}:80"
+      - "${HTTP_BIND:-0.0.0.0}:${HTTPS_PORT:-443}:443"
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env.production}
     volumes:

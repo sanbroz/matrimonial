@@ -7,9 +7,19 @@ import { prisma } from "@/lib/db";
 import { SESSION_COOKIE, SESSION_MAX_AGE, signSession } from "@/lib/auth/session";
 import { loginLimits } from "@/lib/auth/rate-limit";
 
-/** Client IP: the LAST X-Forwarded-For entry is the one our own proxy (Caddy) added, so it can't be spoofed. */
+/**
+ * Client IP for the login limiter.
+ * - Behind Cloudflare Tunnel (CLIENT_IP_HEADER=cf-connecting-ip): Cloudflare's header holds the visitor's IP.
+ *   Safe because the app's port is only reachable through the tunnel.
+ * - Otherwise the LAST X-Forwarded-For entry, which our own proxy (Caddy) added, so it can't be spoofed.
+ */
 async function clientIp() {
   const h = await headers();
+  const trusted = process.env.CLIENT_IP_HEADER?.toLowerCase();
+  if (trusted) {
+    const v = h.get(trusted);
+    if (v) return v.split(",")[0].trim();
+  }
   const xff = h.get("x-forwarded-for");
   return xff ? xff.split(",").pop()!.trim() : "local";
 }

@@ -100,6 +100,23 @@ Then fill in **Settings** (bureau details, logo, plans, fees) before using it fo
 
 To bring existing records: use **Import** (Excel/CSV) in the app.
 
+### Alternative: server behind a Cloudflare Tunnel
+
+If the server is reached through a Cloudflare Tunnel (no open ports, Cloudflare does HTTPS), use instead of
+steps 5–6's DNS record and firewall ports:
+
+```
+SITE_ADDRESS=:80
+HTTP_BIND=127.0.0.1
+HTTP_PORT=8090
+HTTPS_PORT=8091
+CLIENT_IP_HEADER=cf-connecting-ip
+```
+
+In Cloudflare Zero Trust → Networks → Tunnels → your tunnel → **Public hostname**: hostname
+`crm.yourbureau.in`, service **HTTP** `localhost:8090`. (If cloudflared itself runs in Docker rather than on the
+host, use the host's LAN IP with `HTTP_BIND` set to that IP.) Ports 80/443 don't need to be open.
+
 ## 7. Backups
 
 - Every night at `BACKUP_TIME` (default 02:30 India time) one encrypted file is written:
