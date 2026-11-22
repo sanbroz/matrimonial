@@ -28,6 +28,9 @@ export async function saveBureauSettings(fd: FormData) {
   const nextNum = Number(str(fd, "nextProfileNumber"));
   if (!prefix) back("/settings", "Profile code prefix cannot be empty", "error");
   if (!Number.isInteger(nextNum) || nextNum < 1) back("/settings", "Next profile number must be a whole number", "error");
+  // Only change the counter when the owner edited it. Otherwise saving a stale form (opened before
+  // other profiles were added) would set it back.
+  const counterEdited = str(fd, "nextProfileNumberWas") !== String(nextNum);
 
   await prisma.settings.update({
     where: { id: 1 },
@@ -39,7 +42,7 @@ export async function saveBureauSettings(fd: FormData) {
       email: optStr(fd, "email"),
       address: optStr(fd, "address"),
       profileCodePrefix: prefix,
-      nextProfileNumber: nextNum,
+      ...(counterEdited ? { nextProfileNumber: nextNum } : {}),
       registrationFee: money(fd, "registrationFee"),
       successFeeDefault: money(fd, "successFeeDefault"),
       receiptPrefix: str(fd, "receiptPrefix").toUpperCase() || "R",
@@ -122,7 +125,8 @@ export async function savePlan(fd: FormData) {
     description: str(fd, "description"),
   });
   if (!r.success) back("/settings/plans", r.error!.issues[0].message, "error");
-  const data = { ...r.data!, description: r.data!.description || null, active: fd.get("active") !== "off" };
+  // Active/inactive is only changed by the Activate/Deactivate button, never by saving the plan
+  const data = { ...r.data!, description: r.data!.description || null };
   if (id) await prisma.plan.update({ where: { id }, data });
   else await prisma.plan.create({ data });
   revalidatePath("/settings/plans");

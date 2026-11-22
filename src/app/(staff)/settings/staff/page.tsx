@@ -50,7 +50,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
 
 function UserForm({ user }: { user?: User }) {
   return (
-    <form action={saveStaff} className="grid grid-cols-1 gap-3 sm:grid-cols-5">
+    <form key={user ? `${user.id}:${user.updatedAt.toISOString()}` : "new"} action={saveStaff} className="grid grid-cols-1 gap-3 sm:grid-cols-5">
       {user && <input type="hidden" name="id" value={user.id} />}
       <Field label="Name"><input name="name" required defaultValue={user?.name} className={inputClass} /></Field>
       <Field label="Email (login)"><input name="email" type="email" required defaultValue={user?.email} className={inputClass} /></Field>

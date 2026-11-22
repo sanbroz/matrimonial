@@ -142,8 +142,11 @@ export function LibraryCard() {
           disabled={checking || running}
           onClick={async () => {
             setChecking(true);
-            await act({ action: "check" });
-            setChecking(false);
+            try {
+              await act({ action: "check" });
+            } finally {
+              setChecking(false);
+            }
           }}
           className={buttonClass.ghost}
         >

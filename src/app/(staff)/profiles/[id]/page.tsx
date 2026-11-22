@@ -142,7 +142,7 @@ export default async function ProfilePage({
               ) : (
                 <form action={uploadKundli} className="flex flex-wrap items-center gap-2">
                   <input type="hidden" name="profileId" value={p.id} />
-                  <input type="file" name="kundli" accept="image/jpeg,image/png,image/webp,application/pdf" className="text-sm" />
+                  <input type="file" name="kundli" required aria-label="Kundli file (PDF or image)" accept="image/jpeg,image/png,image/webp,application/pdf" className="text-sm" />
                   <SubmitButton variant="secondary" pendingText="Uploading…">Upload</SubmitButton>
                 </form>
               )}
@@ -233,7 +233,8 @@ export default async function ProfilePage({
         <ProposalsPanel profileId={p.id} />
       </div>
 
-      <div className="mt-5">
+      {/* id here (not on the card) so the ?ok= / ?error= message is in view after "#money" */}
+      <div id="money" className="mt-5 scroll-mt-4">
         {(sp.ok || sp.error) && <div className="mb-2">{sp.error ? <Alert>{sp.error}</Alert> : <Alert tone="green">{sp.ok}</Alert>}</div>}
         <MoneyPanel profileId={p.id} isOwner={isOwner} />
       </div>
@@ -256,7 +257,7 @@ export default async function ProfilePage({
             {sp.deleteError && <div className="mb-2"><Alert>The code you typed did not match.</Alert></div>}
             <form action={deleteProfileAction} className="flex flex-wrap gap-2">
               <input type="hidden" name="profileId" value={p.id} />
-              <input name="confirmCode" placeholder={p.code} className={inputClass + " w-40!"} autoComplete="off" />
+              <input name="confirmCode" aria-label="Type the profile code to confirm" placeholder={p.code} className={inputClass + " w-40!"} autoComplete="off" />
               <SubmitButton variant="danger" pendingText="Deleting…">Delete permanently</SubmitButton>
             </form>
           </Card>

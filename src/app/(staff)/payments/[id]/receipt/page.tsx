@@ -18,10 +18,10 @@ import { renderTemplate } from "@/lib/templates";
 
 export const metadata = { title: "Receipt" };
 
-export default async function ReceiptPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string }> }) {
+export default async function ReceiptPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
   const user = await requireUser();
   const { id } = await params;
-  const { ok } = await searchParams;
+  const { ok, error } = await searchParams;
   const [p, s] = await Promise.all([
     prisma.payment.findUnique({
       where: { id },
@@ -54,7 +54,7 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 print:hidden">
         <h1 className="text-xl font-semibold">Receipt <span className="font-mono text-brand-700">{p.receiptNo}</span></h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {p.profileId && <ButtonLink href={`/profiles/${p.profileId}#money`}>Back to profile</ButtonLink>}
           {!p.voidedAt && (
             <>
@@ -87,6 +87,7 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
         </div>
       </div>
       {ok && <div className="mb-4 print:hidden"><Alert tone="green">{ok}</Alert></div>}
+      {error && <div className="mb-4 print:hidden"><Alert>{error}</Alert></div>}
 
       <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-100 p-4 print:border-0 print:bg-white print:p-0">
         <div id="receipt-sheet" className="print-sheet relative mx-auto bg-white p-10 text-[14px] text-zinc-800 shadow-lg print:shadow-none" style={{ width: 794 }}>

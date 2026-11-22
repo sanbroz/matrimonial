@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { fileUrl } from "@/lib/storage";
 import { buildBiodata } from "@/lib/biodata";
+import { nowIST } from "@/lib/format";
 import { readBiodataOptions } from "@/lib/biodata-options";
 import { Alert, ButtonLink, Card, cx, inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
@@ -45,7 +46,7 @@ export default async function BiodataPage({
 
   const options = readBiodataOptions(settings.biodataOptions);
   const lang = sp.lang === "pa" || sp.lang === "en" ? sp.lang : options.defaultLanguage;
-  const content = buildBiodata(profile, options, lang);
+  const content = buildBiodata(profile, options, lang, nowIST());
 
   // Opened from a client's suggestions: offer to record the share for that family
   const client = sp.for
@@ -148,7 +149,7 @@ export default async function BiodataPage({
                 <input type="hidden" name="candidateId" value={profile.id} />
                 <input type="hidden" name="lang" value={lang} />
                 <span>Sent this to a family? Record it:</span>
-                <input name="clientCode" placeholder="Their profile code" className={inputClass + " w-44! py-1.5! uppercase"} />
+                <input name="clientCode" aria-label="Profile code of the family it was sent to" placeholder="Their profile code" className={inputClass + " w-44! py-1.5! uppercase"} />
                 <SubmitButton variant="secondary" pendingText="Saving…">Record share</SubmitButton>
               </form>
             )}

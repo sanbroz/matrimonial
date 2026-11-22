@@ -15,7 +15,7 @@ export default async function BureauSettingsPage({ searchParams }: { searchParam
   const maxCode = await prisma.profile.count();
 
   return (
-    <form action={saveBureauSettings} className="space-y-5">
+    <form key={s.updatedAt.toISOString()} action={saveBureauSettings} className="space-y-5">
       <Flash {...sp} />
       <Card title="Bureau details (shown on biodata and receipts)">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -48,7 +48,10 @@ export default async function BureauSettingsPage({ searchParams }: { searchParam
         </p>
         <div className="grid grid-cols-2 gap-4 sm:w-96">
           <Field label="Prefix"><input name="profileCodePrefix" defaultValue={s.profileCodePrefix} maxLength={6} className={inputClass} /></Field>
-          <Field label="Next number"><input name="nextProfileNumber" type="number" min={1} defaultValue={s.nextProfileNumber} className={inputClass} /></Field>
+          <Field label="Next number">
+            <input type="hidden" name="nextProfileNumberWas" value={s.nextProfileNumber} />
+            <input name="nextProfileNumber" type="number" min={1} defaultValue={s.nextProfileNumber} className={inputClass} />
+          </Field>
         </div>
       </Card>
 

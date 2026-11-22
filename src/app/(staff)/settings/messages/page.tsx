@@ -11,11 +11,11 @@ export const metadata = { title: "Message templates" };
 export default async function MessagesSettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
   await requireOwner();
   const sp = await searchParams;
-  const s = await prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { messageTemplates: true } });
+  const s = await prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { messageTemplates: true, updatedAt: true } });
   const t = readTemplates(s.messageTemplates);
 
   return (
-    <form action={saveTemplates} className="space-y-5">
+    <form key={s.updatedAt.toISOString()} action={saveTemplates} className="space-y-5">
       <Flash {...sp} />
       <p className="text-sm text-zinc-600">
         These are the starting text for WhatsApp messages and emails. Staff can still edit each message before sending.

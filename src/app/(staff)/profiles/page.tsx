@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { loadOptions } from "@/lib/services/profiles";
 import { fileUrl } from "@/lib/storage";
-import { ageFrom, formatHeight } from "@/lib/format";
+import { ageFrom, formatHeight, nowIST } from "@/lib/format";
 import { MARITAL_LABELS } from "@/lib/profile-fields";
 import { Alert, Badge, ButtonLink, EmptyState, PageHeader, buttonClass, cx, inputClass } from "@/components/ui";
 import { deleteSearch, saveSearch } from "./saved-search-actions";
@@ -45,7 +45,7 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
     if (sp[k]) and.push({ [k]: { equals: sp[k], mode: "insensitive" } });
   }
   // Age → DOB range (date-only, UTC)
-  const now = new Date();
+  const now = nowIST(); // India date, so age filters are right just after midnight IST
   const yearsAgo = (y: number) => new Date(Date.UTC(now.getUTCFullYear() - y, now.getUTCMonth(), now.getUTCDate()));
   if (Number(sp.ageMin)) and.push({ dob: { lte: yearsAgo(Number(sp.ageMin)) } });
   if (Number(sp.ageMax)) and.push({ dob: { gt: yearsAgo(Number(sp.ageMax) + 1) } });
@@ -69,6 +69,7 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
   const filterQuery = new URLSearchParams(
     Object.entries(sp).filter(([k, v]) => v && !["page", "deleted"].includes(k)) as [string, string][],
   ).toString();
+  const activeFilters = Object.entries(sp).filter(([k, v]) => v && !["page", "deleted", "q"].includes(k)).length;
   const qs = (patch: SP) => {
     const u = new URLSearchParams(Object.entries({ ...sp, ...patch }).filter(([, v]) => v) as [string, string][]);
     return `?${u}`;
@@ -111,9 +112,19 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
         </div>
       )}
 
-      <form className="mb-5 grid grid-cols-2 gap-2 rounded-lg border border-zinc-200 bg-white p-3 sm:grid-cols-4 lg:grid-cols-6">
-        <input name="q" defaultValue={sp.q} placeholder="Code, name, phone, city…" className={inputClass + " col-span-2"} />
-        <select name="gender" defaultValue={sp.gender ?? ""} className={inputClass}>
+      {/* key: "Clear" and saved-search links stay on this page; remount so the selects show the new filters */}
+      <form key={filterQuery} className="mb-5 rounded-lg border border-zinc-200 bg-white p-3">
+        <div className="flex gap-2">
+          <input name="q" defaultValue={sp.q} placeholder="Code, name, phone, city…" aria-label="Search" className={inputClass} />
+          <button className={buttonClass.primary}>Search</button>
+        </div>
+        {/* Phones: the filters fold away behind a "Filters" toggle (pure CSS); always shown on wider screens */}
+        <input type="checkbox" id="show-filters" className="peer sr-only" defaultChecked={activeFilters > 0} />
+        <label htmlFor="show-filters" className="mt-2 inline-block cursor-pointer text-sm font-medium text-brand-700 sm:hidden">
+          Filters{activeFilters > 0 ? ` (${activeFilters})` : ""}
+        </label>
+        <div className="mt-2 hidden grid-cols-2 gap-2 peer-checked:grid sm:grid sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+        <select name="gender" defaultValue={sp.gender ?? ""} aria-label="Bride or groom" className={inputClass}>
           <option value="">Bride & groom</option>
           <option value="FEMALE">Brides</option>
           <option value="MALE">Grooms</option>
@@ -135,18 +146,19 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
         <OptSelect name="country" label="Any country" values={options.country} current={sp.country} />
         <OptSelect name="education" label="Any education" values={options.education} current={sp.education} />
         <div className="flex gap-1">
-          <input name="ageMin" type="number" defaultValue={sp.ageMin} placeholder="Age from" className={inputClass} />
-          <input name="ageMax" type="number" defaultValue={sp.ageMax} placeholder="to" className={inputClass} />
+          <input name="ageMin" type="number" min={18} max={80} defaultValue={sp.ageMin} placeholder="Age" aria-label="Age from" className={inputClass} />
+          <input name="ageMax" type="number" min={18} max={80} defaultValue={sp.ageMax} placeholder="to" aria-label="Age to" className={inputClass} />
         </div>
-        <select name="flag" defaultValue={sp.flag ?? ""} className={inputClass}>
+        <select name="flag" defaultValue={sp.flag ?? ""} aria-label="Flag" className={inputClass}>
           <option value="">Any flag</option>
           <option value="urgent">Urgent</option>
           <option value="vip">VIP</option>
           <option value="nri">NRI (outside India)</option>
         </select>
         <div className="flex gap-2">
-          <button className={buttonClass.primary}>Search</button>
+          <button className={buttonClass.secondary}>Apply</button>
           <Link href="/profiles" className={buttonClass.ghost}>Clear</Link>
+        </div>
         </div>
       </form>
 
@@ -162,7 +174,7 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
                 <th className="px-3 py-2">Community</th>
                 <th className="hidden px-3 py-2 md:table-cell">Education / work</th>
                 <th className="hidden px-3 py-2 md:table-cell">Location</th>
-                <th className="px-3 py-2">Status</th>
+                <th className="hidden px-3 py-2 sm:table-cell">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -181,6 +193,8 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
                       <span>
                         <span className="font-mono text-xs text-brand-700">{p.code}</span>
                         <span className="block font-medium text-zinc-900">{p.fullName}</span>
+                        {/* Phones: status under the name (the Status column is hidden) */}
+                        <span className="mt-0.5 flex flex-wrap gap-1 sm:hidden"><StatusBadges p={p} /></span>
                       </span>
                     </Link>
                   </td>
@@ -200,12 +214,8 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
                     {p.city}
                     <span className="block text-xs text-zinc-500">{[p.country !== "India" ? p.country : null, p.visaStatus].filter(Boolean).join(" · ")}</span>
                   </td>
-                  <td className="space-x-1 px-3 py-2">
-                    <Badge tone={p.status === "ACTIVE" ? "green" : p.status === "MATCHED" ? "brand" : p.status === "ON_HOLD" ? "amber" : "zinc"}>
-                      {p.status.replace("_", " ").toLowerCase()}
-                    </Badge>
-                    {p.urgent && <Badge tone="red">urgent</Badge>}
-                    {p.maritalStatus !== "NEVER_MARRIED" && <Badge tone="blue">{MARITAL_LABELS[p.maritalStatus].toLowerCase()}</Badge>}
+                  <td className="hidden px-3 py-2 sm:table-cell">
+                    <span className="flex flex-wrap gap-1"><StatusBadges p={p} /></span>
                   </td>
                 </tr>
               ))}
@@ -221,6 +231,18 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
           {page < pages && <Link href={qs({ page: String(page + 1) })} className={buttonClass.secondary}>Next</Link>}
         </div>
       )}
+    </>
+  );
+}
+
+function StatusBadges({ p }: { p: { status: string; urgent: boolean; maritalStatus: keyof typeof MARITAL_LABELS } }) {
+  return (
+    <>
+      <Badge tone={p.status === "ACTIVE" ? "green" : p.status === "MATCHED" ? "brand" : p.status === "ON_HOLD" ? "amber" : "zinc"}>
+        {p.status.replace("_", " ").toLowerCase()}
+      </Badge>
+      {p.urgent && <Badge tone="red">urgent</Badge>}
+      {p.maritalStatus !== "NEVER_MARRIED" && <Badge tone="blue">{MARITAL_LABELS[p.maritalStatus].toLowerCase()}</Badge>}
     </>
   );
 }

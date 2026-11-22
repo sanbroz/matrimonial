@@ -64,8 +64,11 @@ export async function shareByCode(fd: FormData) {
     where: { fromProfileId_toProfileId: { fromProfileId: client!.id, toProfileId: candidateId } },
   });
   if (!existing) {
-    await prisma.proposal.create({
-      data: {
+    // upsert: two people recording the same share at once can't fail on the unique pair
+    await prisma.proposal.upsert({
+      where: { fromProfileId_toProfileId: { fromProfileId: client!.id, toProfileId: candidateId } },
+      update: {},
+      create: {
         fromProfileId: client!.id,
         toProfileId: candidateId,
         createdById: user.id,
@@ -133,10 +136,12 @@ export async function updateProposalStatus(fd: FormData) {
         },
       });
     }
-    if (status === "MATCHED" && fd.get("markProfiles") === "on") {
+    // Only when it BECOMES matched: a later note must not re-mark profiles or re-bill
+    const becameMatched = changed && status === "MATCHED";
+    if (becameMatched && fd.get("markProfiles") === "on") {
       await tx.profile.updateMany({ where: { id: { in: [current.fromProfileId, current.toProfileId] } }, data: { status: "MATCHED" } });
     }
-    if (status === "MATCHED" && fd.get("successFees") === "on") {
+    if (becameMatched && fd.get("successFees") === "on") {
       const billed = await createSuccessFeeDues(tx, id);
       if (billed.length) {
         await tx.proposalEvent.create({
@@ -155,7 +160,11 @@ export async function updateProposalStatus(fd: FormData) {
 export async function removeProposal(fd: FormData) {
   await requireUser();
   const id = z.string().parse(fd.get("id"));
-  const p = await prisma.proposal.delete({ where: { id } });
+  const p = await prisma.proposal.findUnique({ where: { id } });
+  if (!p) return; // already removed (e.g. in another tab)
+  // Success-fee dues stay (proposalId becomes empty): cancelling money owed is the owner's call (waive),
+  // and the double-billing check still recognises them if the couple is matched again.
+  await prisma.proposal.deleteMany({ where: { id } });
   revalidatePath(`/profiles/${p.fromProfileId}`);
   revalidatePath(`/profiles/${p.fromProfileId}/matches`);
   revalidatePath(`/profiles/${p.toProfileId}`);

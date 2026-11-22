@@ -32,6 +32,7 @@ export function ImportWizard() {
     if (!file) return;
     const fd = new FormData();
     fd.set("file", file);
+    e.target.value = ""; // so choosing the same (corrected) file again triggers a new read
     setResult(null);
     start(async () => {
       const s = await parseImportFile(fd);
@@ -108,6 +109,7 @@ export function ImportWizard() {
                     <div className="truncate text-xs text-zinc-400">{dataRows.slice(0, 3).map(({ r }) => r[col]).filter(Boolean).join(" · ") || "—"}</div>
                   </div>
                   <select
+                    aria-label={`Field for column ${h}`}
                     value={mapping[col] ?? ""}
                     onChange={(e) => setMapping((m) => m.map((x, i) => (i === col ? e.target.value || null : x)))}
                     className={cx(inputClass, "w-1/2!", mapping[col] ? "border-emerald-300" : "text-zinc-400")}

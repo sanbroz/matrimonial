@@ -31,17 +31,17 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  leadsCreated    Lead[]      @relation("LeadCreatedBy")
-  leadsAssigned   Lead[]      @relation("LeadAssignedTo")
-  profilesCreated Profile[]   @relation("ProfileCreatedBy")
+  leadsCreated    Lead[]               @relation("LeadCreatedBy")
+  leadsAssigned   Lead[]               @relation("LeadAssignedTo")
+  profilesCreated Profile[]            @relation("ProfileCreatedBy")
   notes           Note[]
-  followUps       FollowUp[]  @relation("FollowUpAssignedTo")
-  followUpsMade   FollowUp[]  @relation("FollowUpCreatedBy")
+  followUps       FollowUp[]           @relation("FollowUpAssignedTo")
+  followUpsMade   FollowUp[]           @relation("FollowUpCreatedBy")
   proposals       Proposal[]
   payments        Payment[]
   savedSearches   SavedSearch[]
   proposalEvents  ProposalEvent[]
-  paymentsVoided  Payment[]       @relation("PaymentVoidedBy")
+  paymentsVoided  Payment[]            @relation("PaymentVoidedBy")
   resetTokens     PasswordResetToken[]
   messagesSent    OutboundMessage[]
 }
@@ -69,22 +69,22 @@ enum MessageStatus {
 
 /// Log of every email / WhatsApp message the app sent.
 model OutboundMessage {
-  id          String         @id @default(cuid())
-  channel     MessageChannel
+  id            String         @id @default(cuid())
+  channel       MessageChannel
   /// biodata, receipt, payment_due, renewal, meeting, summary, password_reset, test
-  kind        String
-  to          String
-  subject     String?
-  body        String
-  hasAttachment Boolean      @default(false)
-  status      MessageStatus
-  error       String?
-  externalId  String?
-  profileId   String?
-  profile     Profile?       @relation(fields: [profileId], references: [id], onDelete: SetNull)
-  createdById String?
-  createdBy   User?          @relation(fields: [createdById], references: [id])
-  createdAt   DateTime       @default(now())
+  kind          String
+  to            String
+  subject       String?
+  body          String
+  hasAttachment Boolean        @default(false)
+  status        MessageStatus
+  error         String?
+  externalId    String?
+  profileId     String?
+  profile       Profile?       @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  createdById   String?
+  createdBy     User?          @relation(fields: [createdById], references: [id])
+  createdAt     DateTime       @default(now())
 
   @@index([profileId, createdAt])
   @@index([createdAt])
@@ -233,13 +233,13 @@ enum ProfileStatus {
 }
 
 model Profile {
-  id     String        @id @default(cuid())
+  id          String        @id @default(cuid())
   /// Public identifier shown on biodata, e.g. PM1001.
-  code   String        @unique
-  status ProfileStatus @default(ACTIVE)
-  urgent      Boolean @default(false)
-  vip         Boolean @default(false)
-  specialCase Boolean @default(false)
+  code        String        @unique
+  status      ProfileStatus @default(ACTIVE)
+  urgent      Boolean       @default(false)
+  vip         Boolean       @default(false)
+  specialCase Boolean       @default(false)
 
   // Basic
   fullName           String
@@ -321,17 +321,17 @@ model Profile {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  lead           Lead?
-  preference     PartnerPreference?
-  photos         Photo[]
-  notes          Note[]
-  followUps      FollowUp[]
-  proposalsSent  Proposal[]   @relation("ProposalFrom")
-  proposalsGot   Proposal[]   @relation("ProposalTo")
-  memberships    Membership[]
-  payments       Payment[]
-  dues           Due[]
-  messages       OutboundMessage[]
+  lead          Lead?
+  preference    PartnerPreference?
+  photos        Photo[]
+  notes         Note[]
+  followUps     FollowUp[]
+  proposalsSent Proposal[]         @relation("ProposalFrom")
+  proposalsGot  Proposal[]         @relation("ProposalTo")
+  memberships   Membership[]
+  payments      Payment[]
+  dues          Due[]
+  messages      OutboundMessage[]
 
   @@index([gender, status])
   @@index([religion, caste])
@@ -369,6 +369,8 @@ model Photo {
   onBiodata Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
+
+  @@index([profileId])
 }
 
 // ───────────────────────── Notes & follow-ups ─────────────────────────
@@ -413,6 +415,8 @@ model FollowUp {
   createdAt    DateTime  @default(now())
 
   @@index([done, dueAt])
+  @@index([profileId])
+  @@index([leadId])
 }
 
 // ───────────────────────── Matching pipeline (phase 4) ─────────────────────────
@@ -428,27 +432,29 @@ enum ProposalStatus {
 }
 
 model Proposal {
-  id            String         @id @default(cuid())
+  id            String          @id @default(cuid())
   /// The client whose family received the biodata.
   fromProfileId String
-  fromProfile   Profile        @relation("ProposalFrom", fields: [fromProfileId], references: [id], onDelete: Cascade)
+  fromProfile   Profile         @relation("ProposalFrom", fields: [fromProfileId], references: [id], onDelete: Cascade)
   /// The profile whose biodata was shared.
   toProfileId   String
-  toProfile     Profile        @relation("ProposalTo", fields: [toProfileId], references: [id], onDelete: Cascade)
-  status        ProposalStatus @default(SHARED)
+  toProfile     Profile         @relation("ProposalTo", fields: [toProfileId], references: [id], onDelete: Cascade)
+  status        ProposalStatus  @default(SHARED)
   declineReason String?
   meetingAt     DateTime?
   matchedAt     DateTime?
   notes         String?
   createdById   String
-  createdBy     User           @relation(fields: [createdById], references: [id])
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdBy     User            @relation(fields: [createdById], references: [id])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   dues          Due[]
   events        ProposalEvent[]
 
   @@unique([fromProfileId, toProfileId])
   @@index([status, updatedAt])
+  @@index([toProfileId])
+  @@index([fromProfileId, createdAt])
 }
 
 /// Timeline of a proposal: every status change, with an optional note.
@@ -483,6 +489,7 @@ model Membership {
   dues       Due[]
 
   @@index([endDate])
+  @@index([profileId, startDate])
 }
 
 enum PaymentKind {
@@ -532,6 +539,7 @@ model Payment {
 
   @@index([paidAt])
   @@index([profileId])
+  @@index([dueId])
 }
 
 enum DueStatus {
@@ -541,9 +549,9 @@ enum DueStatus {
 }
 
 model Due {
-  id         String      @id @default(cuid())
-  profileId  String
-  profile    Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id           String      @id @default(cuid())
+  profileId    String
+  profile      Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
   kind         PaymentKind
   /// e.g. "Registration fee", "Gold 6 months membership", "Success fee (match with PM1036)"
   label        String
@@ -559,4 +567,5 @@ model Due {
 
   @@index([status])
   @@index([profileId])
+  @@index([proposalId])
 }

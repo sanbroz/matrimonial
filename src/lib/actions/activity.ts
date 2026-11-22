@@ -52,7 +52,9 @@ export async function addFollowUp(fd: FormData) {
 export async function markFollowUpDone(fd: FormData) {
   await requireUser();
   const id = z.string().parse(fd.get("id"));
-  const f = await prisma.followUp.update({ where: { id }, data: { done: true, doneAt: new Date() } });
+  const f = await prisma.followUp.findUnique({ where: { id } });
+  if (!f) return; // already removed
+  await prisma.followUp.updateMany({ where: { id, done: false }, data: { done: true, doneAt: new Date() } });
   revalidatePath("/");
   revalidatePath(pathFor({ leadId: f.leadId ?? undefined, profileId: f.profileId ?? undefined }));
 }
@@ -64,6 +66,6 @@ export async function deleteNote(fd: FormData) {
   if (!note) return;
   // Staff can delete their own notes; the owner can delete any.
   if (note.authorId !== user.id && user.role !== "OWNER") return;
-  await prisma.note.delete({ where: { id } });
+  await prisma.note.deleteMany({ where: { id } });
   revalidatePath(pathFor({ leadId: note.leadId ?? undefined, profileId: note.profileId ?? undefined }));
 }

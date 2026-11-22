@@ -34,12 +34,12 @@ export function NotesPanel({
       <form action={addNote} className="mb-4 space-y-3">
         <TargetInputs t={target} />
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[9rem_1fr]">
-          <select name="kind" className={inputClass + " self-start"} defaultValue="CALL">
+          <select name="kind" aria-label="Type of contact" className={inputClass + " self-start"} defaultValue="CALL">
             {Object.entries(KIND_LABEL).map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
             ))}
           </select>
-          <textarea name="body" required rows={2} placeholder="What was discussed?" className={inputClass} />
+          <textarea name="body" aria-label="Note" required rows={2} placeholder="What was discussed?" className={inputClass} />
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <Field label="Follow-up (optional)" className="w-56">
@@ -98,7 +98,7 @@ export function FollowUpsPanel({ target, followUps }: { target: Target; followUp
           <li key={f.id} className="flex items-center justify-between gap-2 py-2">
             <div className="text-sm">
               <div className="font-medium">{f.title}</div>
-              <div className={f.dueAt < new Date() ? "text-xs text-red-600" : "text-xs text-zinc-500"}>{formatDateTime(f.dueAt)}</div>
+              <div className={f.dueAt < new Date() ? "text-xs text-red-600" : "text-xs text-zinc-500"}>{formatDateTime(f.dueAt)}{f.dueAt < new Date() && " (overdue)"}</div>
             </div>
             <FollowUpDoneButton id={f.id} />
           </li>

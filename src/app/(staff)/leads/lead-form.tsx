@@ -21,7 +21,9 @@ export function LeadForm({
   const [state, formAction] = useActionState(action, {});
   const v = state.values ?? initial;
   return (
-    <form key={state.ts ?? 0} action={formAction} className="space-y-4">
+    // key: remount after a failed save (keep typed values) AND after a successful save, so the
+    // selects show what was saved (React resets forms to their first-render defaults otherwise)
+    <form key={`${state.ts ?? 0}:${JSON.stringify(initial)}`} action={formAction} className="space-y-4">
       {state.error && <Alert>{state.error}</Alert>}
       <Card>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

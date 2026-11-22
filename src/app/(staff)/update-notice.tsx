@@ -20,12 +20,23 @@ const CHECK_EVERY = 15 * 60_000;
  * Version line under "Sign out". For the owner it also checks for a newer release on the
  * server and offers "Back up & update", then follows the update until the new version answers.
  */
-export function UpdateNotice({ initial, isOwner }: { initial: Running; isOwner: boolean }) {
+export function UpdateNotice({ initial, isOwner, screen }: { initial: Running; isOwner: boolean; screen: "desktop" | "mobile" }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [phase, setPhase] = useState<"idle" | "confirm" | "updating" | "done" | "failed">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const target = useRef<string | null>(null);
+  // The layout renders one copy for the sidebar (desktop) and one for the page bottom (phones);
+  // only the copy for the current screen size polls the server.
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = () => setActive(mq.matches === (screen === "desktop"));
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [screen]);
 
   const load = useCallback(async () => {
     try {
@@ -40,11 +51,11 @@ export function UpdateNotice({ initial, isOwner }: { initial: Running; isOwner: 
   }, []);
 
   useEffect(() => {
-    if (!isOwner) return;
+    if (!isOwner || !active) return;
     load();
     const t = setInterval(load, CHECK_EVERY);
     return () => clearInterval(t);
-  }, [isOwner, load]);
+  }, [isOwner, active, load]);
 
   // While updating: poll until the NEW version answers (or the updater reports failure)
   useEffect(() => {
@@ -63,11 +74,19 @@ export function UpdateNotice({ initial, isOwner }: { initial: Running; isOwner: 
   }, [phase, load]);
 
   async function start() {
+    if (starting) return;
+    setStarting(true);
     setError(null);
     target.current = status?.available?.commit ?? null;
-    const r = await fetch("/api/update", { method: "POST" });
-    if (r.status === 202) setPhase("updating");
-    else setError((await r.json().catch(() => ({}))).error ?? "Could not start the update");
+    try {
+      const r = await fetch("/api/update", { method: "POST" });
+      if (r.status === 202) setPhase("updating");
+      else setError((await r.json().catch(() => ({}))).error ?? "Could not start the update");
+    } catch {
+      setError("Could not reach the server. Check the connection and try again.");
+    } finally {
+      setStarting(false);
+    }
   }
 
   const running = status?.running ?? initial;
@@ -124,7 +143,7 @@ export function UpdateNotice({ initial, isOwner }: { initial: Running; isOwner: 
           {(phase === "confirm" || phase === "idle") && (
             <>
               <p className="text-sm text-zinc-600">
-                Installed: <strong>{label}</strong>. On the server: <strong>v{status?.available?.version} · {status?.available?.commit}</strong>.
+                Installed: <strong>{label}</strong>. On the server: <strong>{status?.available?.version ? `v${status.available.version} · ` : ""}{status?.available?.commit}</strong>.
               </p>
               {changes.length > 0 && (
                 <div>
@@ -143,7 +162,7 @@ export function UpdateNotice({ initial, isOwner }: { initial: Running; isOwner: 
               {error && <p className="text-sm text-red-600">{error}</p>}
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => dialog.current?.close()} className={buttonClass.secondary}>Later</button>
-                <button type="button" onClick={start} className={buttonClass.primary}>Back up &amp; update now</button>
+                <button type="button" onClick={start} disabled={starting} className={buttonClass.primary}>{starting ? "Starting…" : "Back up & update now"}</button>
               </div>
             </>
           )}

@@ -26,7 +26,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
           <form action={logoutAction}>
             <button className="text-sm text-zinc-500 hover:text-zinc-900">Sign out</button>
           </form>
-          <UpdateNotice initial={appVersion} isOwner={isOwner} />
+          <UpdateNotice initial={appVersion} isOwner={isOwner} screen="desktop" />
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-4 py-5 md:px-8 md:py-7">
@@ -35,7 +35,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
           <form action={logoutAction}>
             <button className="text-sm text-zinc-500">Sign out</button>
           </form>
-          <UpdateNotice initial={appVersion} isOwner={isOwner} />
+          <UpdateNotice initial={appVersion} isOwner={isOwner} screen="mobile" />
         </div>
       </main>
     </div>

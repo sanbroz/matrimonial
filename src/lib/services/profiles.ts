@@ -5,20 +5,34 @@ import { phoneKey } from "@/lib/parse";
 
 type Tx = Prisma.TransactionClient;
 
-/** Atomically takes the next number from Settings → e.g. "PM1001". */
-export async function nextProfileCode(tx: Tx): Promise<string> {
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const s = await tx.settings.update({
-      where: { id: 1 },
-      data: { nextProfileNumber: { increment: 1 } },
-      select: { profileCodePrefix: true, nextProfileNumber: true },
-    });
-    const code = `${s.profileCodePrefix}${s.nextProfileNumber - 1}`;
-    // Skip codes already taken (e.g. after the owner changed prefix/number).
-    const taken = await tx.profile.findUnique({ where: { code }, select: { id: true } });
-    if (!taken) return code;
+/** Highest number used after `prefix` in existing codes (PM1042 → 1042), or 0. */
+export async function highestCodeNumber(tx: Tx, prefix: string): Promise<number> {
+  const rows = await tx.profile.findMany({ where: { code: { startsWith: prefix } }, select: { code: true } });
+  let max = 0;
+  for (const r of rows) {
+    const n = Number(r.code.slice(prefix.length));
+    if (Number.isInteger(n) && n > max) max = n;
   }
-  throw new Error("Could not allocate a profile code — check Settings → profile numbering");
+  return max;
+}
+
+/**
+ * Atomically takes the next number from Settings → e.g. "PM1001".
+ * If that code is already taken (counter set back by hand, prefix changed back), the counter jumps
+ * past the highest existing code instead of failing.
+ */
+export async function nextProfileCode(tx: Tx): Promise<string> {
+  const s = await tx.settings.update({
+    where: { id: 1 },
+    data: { nextProfileNumber: { increment: 1 } },
+    select: { profileCodePrefix: true, nextProfileNumber: true },
+  });
+  const code = `${s.profileCodePrefix}${s.nextProfileNumber - 1}`;
+  if (!(await tx.profile.findUnique({ where: { code }, select: { id: true } }))) return code;
+
+  const next = (await highestCodeNumber(tx, s.profileCodePrefix)) + 1;
+  await tx.settings.update({ where: { id: 1 }, data: { nextProfileNumber: next + 1 } });
+  return `${s.profileCodePrefix}${next}`;
 }
 
 export async function createProfile(
@@ -40,10 +54,16 @@ export async function createProfile(
       },
     });
     if (opts.leadId) {
-      await tx.lead.update({ where: { id: opts.leadId }, data: { profileId: profile.id, status: "CONVERTED" } });
-      // Carry the lead's notes and open follow-ups over to the profile
-      await tx.note.updateMany({ where: { leadId: opts.leadId }, data: { profileId: profile.id, leadId: null } });
-      await tx.followUp.updateMany({ where: { leadId: opts.leadId }, data: { profileId: profile.id, leadId: null } });
+      // Only if the lead isn't converted yet (two people converting the same lead at once)
+      const linked = await tx.lead.updateMany({
+        where: { id: opts.leadId, profileId: null },
+        data: { profileId: profile.id, status: "CONVERTED" },
+      });
+      if (linked.count === 1) {
+        // Carry the lead's notes and open follow-ups over to the profile
+        await tx.note.updateMany({ where: { leadId: opts.leadId }, data: { profileId: profile.id, leadId: null } });
+        await tx.followUp.updateMany({ where: { leadId: opts.leadId }, data: { profileId: profile.id, leadId: null } });
+      }
     }
     return profile;
   });

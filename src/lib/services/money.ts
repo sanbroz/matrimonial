@@ -1,22 +1,31 @@
 import "server-only";
 import type { PaymentKind, PaymentMode, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { dueStatusFor } from "@/lib/money";
+import { dueStatusFor, todayIST } from "@/lib/money";
 
 type Tx = Prisma.TransactionClient;
 
-/** Atomically takes the next receipt number from Settings → e.g. "R101". */
+/**
+ * Atomically takes the next receipt number from Settings → e.g. "R101".
+ * If it's already used (e.g. the prefix was changed back), jump past the highest existing number.
+ */
 export async function nextReceiptNo(tx: Tx): Promise<string> {
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const s = await tx.settings.update({
-      where: { id: 1 },
-      data: { nextReceiptNumber: { increment: 1 } },
-      select: { receiptPrefix: true, nextReceiptNumber: true },
-    });
-    const no = `${s.receiptPrefix}${s.nextReceiptNumber - 1}`;
-    if (!(await tx.payment.findUnique({ where: { receiptNo: no }, select: { id: true } }))) return no;
+  const s = await tx.settings.update({
+    where: { id: 1 },
+    data: { nextReceiptNumber: { increment: 1 } },
+    select: { receiptPrefix: true, nextReceiptNumber: true },
+  });
+  const no = `${s.receiptPrefix}${s.nextReceiptNumber - 1}`;
+  if (!(await tx.payment.findUnique({ where: { receiptNo: no }, select: { id: true } }))) return no;
+
+  const rows = await tx.payment.findMany({ where: { receiptNo: { startsWith: s.receiptPrefix } }, select: { receiptNo: true } });
+  let max = 0;
+  for (const r of rows) {
+    const n = Number(r.receiptNo.slice(s.receiptPrefix.length));
+    if (Number.isInteger(n) && n > max) max = n;
   }
-  throw new Error("Could not allocate a receipt number — check Settings → receipt prefix");
+  await tx.settings.update({ where: { id: 1 }, data: { nextReceiptNumber: max + 2 } });
+  return `${s.receiptPrefix}${max + 1}`;
 }
 
 /** Re-derive a due's status from its non-voided payments. */
@@ -86,13 +95,25 @@ export async function createSuccessFeeDues(tx: Tx, proposalId: string) {
   });
   const created: string[] = [];
   for (const [me, other] of [[p.fromProfile, p.toProfile], [p.toProfile, p.fromProfile]]) {
-    const exists = await tx.due.findFirst({ where: { proposalId, profileId: me.id, kind: "SUCCESS_FEE" } });
+    // Families usually get each other's biodata, so the couple can have a proposal in each direction.
+    // Bill once per couple: look at both directions, and at dues whose proposal record was removed.
+    const label = `Success fee (match with ${other.code})`;
+    const exists = await tx.due.findFirst({
+      where: {
+        profileId: me.id,
+        kind: "SUCCESS_FEE",
+        status: { not: "WAIVED" },
+        OR: [
+          { proposal: { fromProfileId: me.id, toProfileId: other.id } },
+          { proposal: { fromProfileId: other.id, toProfileId: me.id } },
+          { proposalId: null, label },
+        ],
+      },
+    });
     if (exists) continue;
     const amount = await successFeeFor(tx, me.id);
     if (amount <= 0) continue;
-    await tx.due.create({
-      data: { profileId: me.id, kind: "SUCCESS_FEE", label: `Success fee (match with ${other.code})`, amount, proposalId },
-    });
+    await tx.due.create({ data: { profileId: me.id, kind: "SUCCESS_FEE", label, amount, proposalId } });
     created.push(me.code);
   }
   return created;
@@ -107,12 +128,18 @@ export async function loadProfileMoney(profileId: string) {
     prisma.plan.findMany({ where: { active: true }, orderBy: { price: "asc" } }),
     prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { registrationFee: true } }),
   ]);
-  // Introductions used in the current membership = biodata shared with this family during it
-  const current = memberships[0];
+  // "Current" = the membership running today (an early renewal starts in the future); else the latest one
+  const today = todayIST();
+  const current = memberships.find((m) => m.startDate <= today && m.endDate >= today) ?? memberships[0];
+  // Introductions used = biodata shared with this family during it (date-only bounds are IST days)
+  const IST = 330 * 60000;
   const introsUsed = current
     ? await prisma.proposal.count({
-        where: { fromProfileId: profileId, createdAt: { gte: current.startDate, lte: new Date(current.endDate.getTime() + 86400000) } },
+        where: {
+          fromProfileId: profileId,
+          createdAt: { gte: new Date(current.startDate.getTime() - IST), lt: new Date(current.endDate.getTime() + 86400000 - IST) },
+        },
       })
     : 0;
-  return { memberships, dues, payments, plans, registrationFee: settings.registrationFee, introsUsed };
+  return { memberships, current, dues, payments, plans, registrationFee: settings.registrationFee, introsUsed };
 }

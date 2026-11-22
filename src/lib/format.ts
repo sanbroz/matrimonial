@@ -7,7 +7,19 @@ export function formatHeight(cm: number | null | undefined): string {
 }
 
 /** Age in whole years; DOB is a date-only value stored at 00:00 UTC. */
-export function ageFrom(dob: Date | null | undefined, now = new Date()): number | null {
+/**
+ * "Now" shifted to India time, for comparisons by UTC date parts against date-only values.
+ * (Between 00:00 and 05:30 IST the UTC date is still yesterday.)
+ */
+export const nowIST = () => new Date(Date.now() + 330 * 60000);
+
+/** Day of a timestamp in India time, e.g. "22 Nov 2026". */
+export function formatDayIST(d: Date | null | undefined): string {
+  if (!d) return "";
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+}
+
+export function ageFrom(dob: Date | null | undefined, now = nowIST()): number | null {
   if (!dob) return null;
   let age = now.getUTCFullYear() - dob.getUTCFullYear();
   const m = now.getUTCMonth() - dob.getUTCMonth();

@@ -53,15 +53,19 @@ export async function createLeadAction(_prev: LeadFormState, fd: FormData): Prom
   const user = await requireUser();
   const r = readLead(fd);
   if (!r.data) return { error: r.error, values: r.values, ts: Date.now() };
-  const lead = await prisma.lead.create({ data: { ...r.data, createdById: user.id, assignedToId: user.id } });
-
   const followAt = fromDateTimeInputIST(String(fd.get("followUpAt") ?? ""));
-  if (followAt) {
-    await prisma.followUp.create({
-      data: { leadId: lead.id, title: "Call back lead", dueAt: followAt, createdById: user.id, assignedToId: user.id },
-    });
-    if (lead.status === "NEW") await prisma.lead.update({ where: { id: lead.id }, data: { status: "FOLLOW_UP" } });
-  }
+  // One transaction: the lead and its call-back are saved together or not at all
+  const lead = await prisma.lead.create({
+    data: {
+      ...r.data,
+      ...(followAt ? { status: "FOLLOW_UP" as const } : {}),
+      createdById: user.id,
+      assignedToId: user.id,
+      ...(followAt
+        ? { followUps: { create: { title: "Call back lead", dueAt: followAt, createdById: user.id, assignedToId: user.id } } }
+        : {}),
+    },
+  });
   revalidatePath("/leads");
   redirect(`/leads/${lead.id}`);
 }
@@ -70,7 +74,8 @@ export async function updateLeadAction(id: string, _prev: LeadFormState, fd: For
   await requireUser();
   const r = readLead(fd);
   if (!r.data) return { error: r.error, values: r.values, ts: Date.now() };
-  await prisma.lead.update({ where: { id }, data: r.data });
+  const res = await prisma.lead.updateMany({ where: { id }, data: r.data });
+  if (res.count === 0) return { error: "This lead no longer exists (it may have been deleted).", values: r.values, ts: Date.now() };
   revalidatePath(`/leads/${id}`);
   revalidatePath("/leads");
   redirect(`/leads/${id}?saved=1`);
@@ -79,7 +84,7 @@ export async function updateLeadAction(id: string, _prev: LeadFormState, fd: For
 export async function deleteLeadAction(fd: FormData) {
   await requireOwner();
   const id = z.string().parse(fd.get("id"));
-  await prisma.lead.delete({ where: { id } });
+  await prisma.lead.deleteMany({ where: { id } });
   revalidatePath("/leads");
   redirect("/leads");
 }

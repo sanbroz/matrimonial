@@ -94,7 +94,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                   <td className="hidden px-3 py-2 text-zinc-600 sm:table-cell">{SOURCE_LABELS[l.source]}</td>
                   <td className="px-3 py-2 text-xs">
                     {l.followUps[0] ? (
-                      <span className={l.followUps[0].dueAt < new Date() ? "text-red-600" : "text-zinc-600"}>{formatDateTime(l.followUps[0].dueAt)}</span>
+                      <span className={l.followUps[0].dueAt < new Date() ? "text-red-600" : "text-zinc-600"}>{formatDateTime(l.followUps[0].dueAt)}{l.followUps[0].dueAt < new Date() && " (overdue)"}</span>
                     ) : (
                       <span className="text-zinc-400">—</span>
                     )}

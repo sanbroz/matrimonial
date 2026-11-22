@@ -11,7 +11,7 @@ export const metadata = { title: "Matching rules" };
 export default async function MatchingSettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
   await requireOwner();
   const sp = await searchParams;
-  const s = await prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { matchingOptions: true } });
+  const s = await prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { matchingOptions: true, updatedAt: true } });
   const o = readMatchingOptions(s.matchingOptions);
 
   const check = (name: keyof typeof o, label: string, hint: string) => (
@@ -25,7 +25,7 @@ export default async function MatchingSettingsPage({ searchParams }: { searchPar
   );
 
   return (
-    <form action={saveMatchingSettings} className="space-y-5">
+    <form key={s.updatedAt.toISOString()} action={saveMatchingSettings} className="space-y-5">
       <Flash {...sp} />
       <Card title="Gotra rule">
         <p className="mb-3 text-sm text-zinc-600">Applied only when both profiles have a gotra recorded, so it never affects families who don&apos;t follow it.</p>

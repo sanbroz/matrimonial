@@ -20,22 +20,26 @@ const modeSelect = (
 );
 
 export async function MoneyPanel({ profileId, isOwner }: { profileId: string; isOwner: boolean }) {
-  const [{ memberships, dues, payments, plans, registrationFee, introsUsed }, person, ctx] = await Promise.all([
+  const [{ memberships, current, dues, payments, plans, registrationFee, introsUsed }, person, ctx] = await Promise.all([
     loadProfileMoney(profileId),
     prisma.profile.findUnique({ where: { id: profileId }, select: { code: true, fullName: true, contactName: true, phone: true } }),
     messageContext(),
   ]);
   const baseVars = { ...ctx.base, name: person ? addressee(person) : "", code: person?.code ?? "" };
   const waReason = whatsappConfigured ? (person?.phone ? null : "No phone number on this profile") : "WhatsApp is available on the production server";
-  const current = memberships[0];
+
   const left = current ? daysLeft(current.endDate) : null;
   const openDues = dues.filter((d) => d.status === "OPEN");
   const outstanding = openDues.reduce((s, d) => s + dueBalance(d, d.payments), 0);
   const hasRegistration = dues.some((d) => d.kind === "REGISTRATION") || payments.some((p) => p.kind === "REGISTRATION" && !p.voidedAt);
   const today = todayIST().toISOString().slice(0, 10);
+  // Already renewed (a membership starts after the current one) → no renewal reminder; next renewal starts after the latest
+  const latest = memberships[0];
+  const renewed = !!current && !!latest && latest.id !== current.id && latest.startDate > current.startDate;
+  const renewFrom = latest && daysLeft(latest.endDate) >= 0 ? new Date(latest.endDate.getTime() + 86400000).toISOString().slice(0, 10) : today;
 
   return (
-    <div id="money">
+    <div>
       <Card
         title={
           <span className="flex flex-wrap items-center gap-2">
@@ -53,7 +57,8 @@ export async function MoneyPanel({ profileId, isOwner }: { profileId: string; is
                 <span className="font-medium">{current.plan.name}</span>
                 <span className="text-zinc-600">{formatDateOnly(current.startDate)} to {formatDateOnly(current.endDate)}</span>
                 {left! < 0 ? <Badge tone="red">Expired {-left!} days ago</Badge> : left! <= 14 ? <Badge tone="amber">{left} days left</Badge> : <Badge tone="green">{left} days left</Badge>}
-                {left! <= 14 && (
+                {renewed && <Badge tone="green">Renewed</Badge>}
+                {left! <= 14 && !renewed && (
                   <SendMessageButton
                     channel="whatsapp"
                     label="Renewal reminder"
@@ -76,15 +81,15 @@ export async function MoneyPanel({ profileId, isOwner }: { profileId: string; is
             ) : (
               <p className="text-sm text-zinc-500">No membership yet.</p>
             )}
-            {memberships.length > 1 && (
+            {memberships.length > 1 && current && (
               <p className="mt-1 text-xs text-zinc-500">
-                Earlier: {memberships.slice(1).map((m) => `${m.plan.name} (${formatDateOnly(m.startDate)})`).join(", ")}
+                Other memberships: {memberships.filter((m) => m.id !== current.id).map((m) => `${m.plan.name} (${formatDateOnly(m.startDate)})`).join(", ")}
               </p>
             )}
             <details className="mt-2" open={!current}>
               <summary className="cursor-pointer text-sm font-medium text-brand-700">{current ? "Renew / start new membership" : "Start membership"}</summary>
               <div className="mt-3">
-                <MembershipForm profileId={profileId} plans={plans} defaultStart={current && left! >= 0 ? new Date(current.endDate.getTime() + 86400000).toISOString().slice(0, 10) : today} />
+                <MembershipForm profileId={profileId} plans={plans} defaultStart={renewFrom} />
               </div>
             </details>
           </section>
@@ -107,8 +112,9 @@ export async function MoneyPanel({ profileId, isOwner }: { profileId: string; is
                         {paid > 0 && <span className="text-zinc-500">paid {rupees(paid)}</span>}
                         {d.status === "OPEN" && <Badge tone="red">{rupees(bal)} due</Badge>}
                         {d.status === "PAID" && <Badge tone="green">Paid</Badge>}
-                        {d.status === "WAIVED" && <Badge>Waived{d.notes && d.notes !== "Waived" ? `: ${d.notes}` : ""}</Badge>}
+                        {d.status === "WAIVED" && <Badge>Waived</Badge>}
                       </div>
+                      {d.notes && <p className="mt-0.5 whitespace-pre-line text-xs text-zinc-500">{d.notes}</p>}
                       {d.status === "OPEN" && (
                         <div className="mt-2 flex flex-wrap items-start gap-3 text-sm">
                           <SendMessageButton
@@ -136,18 +142,20 @@ export async function MoneyPanel({ profileId, isOwner }: { profileId: string; is
                           </details>
                           <details>
                             <summary className="cursor-pointer text-zinc-600">Change amount</summary>
-                            <form action={editDueAmount} className="mt-2 flex items-end gap-2">
+                            <form action={editDueAmount} className="mt-2 flex flex-wrap items-end gap-2">
                               <input type="hidden" name="dueId" value={d.id} />
-                              <Field label="New amount (₹)"><input name="amount" inputMode="numeric" defaultValue={d.amount} className={inputClass + " w-32!"} /></Field>
+                              <Field label="New amount (₹)" hint={isOwner ? undefined : "Only the owner can lower it"}>
+                                <input name="amount" inputMode="numeric" defaultValue={d.amount} className={inputClass + " w-32!"} />
+                              </Field>
                               <SubmitButton variant="secondary">Save</SubmitButton>
                             </form>
                           </details>
                           {isOwner && (
                             <details>
                               <summary className="cursor-pointer text-zinc-600">Waive</summary>
-                              <form action={waiveDue} className="mt-2 flex items-end gap-2">
+                              <form action={waiveDue} className="mt-2 flex flex-wrap items-end gap-2">
                                 <input type="hidden" name="dueId" value={d.id} />
-                                <Field label="Reason"><input name="reason" className={inputClass + " w-56!"} /></Field>
+                                <Field label="Reason" className="w-full sm:w-56"><input name="reason" className={inputClass} /></Field>
                                 <SubmitButton variant="danger" confirm="Waive the remaining amount?">Waive</SubmitButton>
                               </form>
                             </details>

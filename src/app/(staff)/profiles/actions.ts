@@ -147,6 +147,7 @@ export async function uploadKundli(fd: FormData) {
     }
   }
   revalidatePath(`/profiles/${profileId}`);
+  redirect(`/profiles/${profileId}?saved=1`); // confirmation that the kundli was saved/removed
 }
 
 // ───────────── Delete (owner only, permanent — e.g. on the client's request) ─────────────

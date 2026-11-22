@@ -26,7 +26,8 @@ export async function GET(req: Request) {
   }));
   const fields = ["Receipt no", "Date", "Profile code", "Received from", "Type", "For", "Mode", "Reference", "Amount", "Void", "Recorded by"];
   // Explicit fields so an empty month still gets a header row
-  const csv = "﻿" + Papa.unparse({ fields, data: rows.map((r) => fields.map((f) => r[f as keyof typeof r])) });
+  // escapeFormulae: names/references typed by staff can't run as formulas when opened in Excel
+  const csv = "﻿" + Papa.unparse({ fields, data: rows.map((r) => fields.map((f) => r[f as keyof typeof r])) }, { escapeFormulae: true });
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

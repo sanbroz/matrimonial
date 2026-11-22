@@ -43,7 +43,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
 
 function PlanForm({ plan, defaultSuccess }: { plan?: Plan; defaultSuccess: number }) {
   return (
-    <form action={savePlan} className="grid grid-cols-2 gap-3 sm:grid-cols-6">
+    <form key={plan ? JSON.stringify(plan) : "new"} action={savePlan} className="grid grid-cols-2 gap-3 sm:grid-cols-6">
       {plan && <input type="hidden" name="id" value={plan.id} />}
       <Field label="Name" className="col-span-2"><input name="name" required defaultValue={plan?.name} placeholder="e.g. Gold 6 months" className={inputClass} /></Field>
       <Field label="Duration (days)"><input name="durationDays" type="number" min={1} required defaultValue={plan?.durationDays ?? 180} className={inputClass} /></Field>

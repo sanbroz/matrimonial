@@ -13,7 +13,7 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
   const me = await requireOwner();
   const sp = await searchParams;
   const [s, recent] = await Promise.all([
-    prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { emailConfig: true, summaryOptions: true, lastSummaryDate: true } }),
+    prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { emailConfig: true, summaryOptions: true, lastSummaryDate: true, updatedAt: true } }),
     prisma.outboundMessage.findMany({ where: { channel: "EMAIL" }, orderBy: { createdAt: "desc" }, take: 10 }),
   ]);
   const cfg = readEmailConfig(s.emailConfig);
@@ -24,7 +24,7 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
   return (
     <div className="space-y-5">
       <Flash {...sp} />
-      <form action={saveEmailSettings} className="space-y-5">
+      <form key={s.updatedAt.toISOString()} action={saveEmailSettings} className="space-y-5">
         <Card title={<span className="flex items-center gap-2">Gmail account {ready ? <Badge tone="green">On</Badge> : <Badge>Off</Badge>}</span>}>
           <div className="mb-4 rounded-md bg-zinc-50 p-3 text-sm text-zinc-700">
             <p className="font-medium">How to get a Gmail App Password (one time):</p>

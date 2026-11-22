@@ -18,7 +18,7 @@ export function ForgotForm() {
     <form action={action} className="space-y-4">
       {state?.error && <Alert>{state.error}</Alert>}
       <Field label="Your email">
-        <input name="email" type="email" autoComplete="username" required className={inputClass} />
+        <input key={state?.email ?? ""} name="email" type="email" autoComplete="username" required defaultValue={state?.email} className={inputClass} />
       </Field>
       <SubmitButton pendingText="Sending…" className="w-full">Email me a reset link</SubmitButton>
     </form>

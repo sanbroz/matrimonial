@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth/server";
 import { collections, currentMonth, openDues, renewalsDue } from "@/lib/services/reports";
 import { KIND_LABELS, MODE_LABELS, daysLeft, rupees } from "@/lib/money";
-import { formatDateOnly, formatDateTime } from "@/lib/format";
+import { formatDateOnly, formatDateTime, formatDayIST } from "@/lib/format";
 import { Alert, Badge, ButtonLink, Card, EmptyState, PageHeader, buttonClass, cx, inputClass } from "@/components/ui";
 
 import { SendMessageButton } from "@/components/send-message";
@@ -69,7 +69,7 @@ async function DuesTab() {
                     </td>
                     <td className="py-2 pr-3">{d.label}</td>
                     <td className="py-2 pr-3 text-zinc-600">
-                      {formatDateOnly(d.createdAt)}
+                      {formatDayIST(d.createdAt)}
                       {age(d.createdAt) > 30 && <span className="ml-1"><Badge tone="red">{age(d.createdAt)} days</Badge></span>}
                     </td>
                     <td className="py-2 pr-3 text-right font-medium">{rupees(d.balance)}</td>

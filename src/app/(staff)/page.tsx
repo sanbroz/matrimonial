@@ -143,7 +143,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <div className="min-w-0">
                     <div className="text-sm font-medium">{f.title}</div>
                     <div className="text-xs text-zinc-500">
-                      <span className={overdue ? "text-red-600" : ""}>{formatDateTime(f.dueAt)}</span>
+                      <span className={overdue ? "text-red-600" : ""}>{formatDateTime(f.dueAt)}{overdue && " (overdue)"}</span>
                       {who && (
                         <>
                           {" · "}

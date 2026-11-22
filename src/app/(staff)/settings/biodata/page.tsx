@@ -15,12 +15,11 @@ export default async function BiodataSettingsPage({ searchParams }: { searchPara
   const o = readBiodataOptions(s.biodataOptions);
 
   return (
-    <form action={saveBiodataSettings} className="space-y-5">
+    <form key={s.updatedAt.toISOString()} action={saveBiodataSettings} className="space-y-5">
       <Flash {...sp} />
       <Alert tone="amber">
-        These settings control the biodata PDF/image that staff share on WhatsApp. The biodata generator itself is the next
-        phase; the choices you make here will be used by it. A biodata always shows the profile code instead of the name, and never the
-        family&apos;s phone or address.
+        These settings control the biodata image and PDF that staff send (open any profile → Biodata to see the result).
+        A biodata always shows the profile code instead of the name, and never the family&apos;s phone or address.
       </Alert>
       <Card title="Look">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

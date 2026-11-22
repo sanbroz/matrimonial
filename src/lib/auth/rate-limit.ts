@@ -38,6 +38,14 @@ export class AttemptLimiter {
     this.hits.delete(key);
   }
 
+  /** Take back the most recent attempt (it turned out to be a success). */
+  undo(key: string) {
+    const list = this.hits.get(key);
+    if (!list?.length) return;
+    list.pop();
+    if (!list.length) this.hits.delete(key);
+  }
+
   private prune(now: number) {
     for (const key of this.hits.keys()) this.recent(key, now);
   }

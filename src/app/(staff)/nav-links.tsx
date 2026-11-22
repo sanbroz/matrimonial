@@ -19,7 +19,8 @@ export function NavLinks({ isOwner }: { isOwner: boolean }) {
   const path = usePathname();
   const links = isOwner ? [...LINKS, ...OWNER_LINKS] : LINKS;
   return (
-    <nav className="no-scrollbar flex gap-1 overflow-x-auto overflow-y-hidden px-2 pb-2 md:flex-col md:overflow-visible md:px-3">
+    // Phones: wraps onto a second line (nothing hidden off-screen). Desktop: a column.
+    <nav className="flex flex-wrap gap-1 px-2 pb-2 md:flex-col md:flex-nowrap md:px-3">
       {links.map((l) => {
         const active = l.href === "/" ? path === "/" : path.startsWith(l.href);
         return (

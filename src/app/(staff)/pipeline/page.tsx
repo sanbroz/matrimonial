@@ -72,7 +72,7 @@ export default async function PipelinePage({ searchParams }: { searchParams: Pro
                           {p.status === "MEETING_SCHEDULED" && p.meetingAt ? (
                             <span>Meeting {formatDateTime(p.meetingAt)}</span>
                           ) : (
-                            <span>{days(p.updatedAt) === 0 ? "Updated today" : `${days(p.updatedAt)} days since update`}</span>
+                            <span>{days(p.updatedAt) === 0 ? "Updated today" : `${days(p.updatedAt)} day${days(p.updatedAt) === 1 ? "" : "s"} since update`}</span>
                           )}
                           {flag && <Badge tone="red">follow up</Badge>}
                         </div>

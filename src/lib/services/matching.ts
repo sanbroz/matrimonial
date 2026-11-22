@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { rankCandidates, readMatchingOptions, type MatchProfile } from "@/lib/matching";
 import { loadOptions } from "./profiles";
+import { nowIST } from "@/lib/format";
 
 const SELECT = {
   id: true,
@@ -60,7 +61,7 @@ export async function suggestMatches(profileId: string) {
   });
 
   const ranked = rankCandidates(toMatch(client), pool.map(toMatch), opts, {
-    now: new Date(),
+    now: nowIST(), // ages by the India date
     educationOrder: options.education ?? [],
     incomeOrder: options.annualIncome ?? [],
   });

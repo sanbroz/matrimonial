@@ -98,7 +98,9 @@ export function ProfileForm({
         </Card>
       ))}
 
-      <div className="sticky bottom-0 -mx-4 flex gap-2 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur md:mx-0 md:rounded-lg md:border">
+      <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-2 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur md:mx-0 md:rounded-lg md:border">
+        {/* The error is also shown here, next to Save (the top of a long form is out of view) */}
+        {state.message && <span className="w-full text-sm text-red-700">{state.message} {Object.keys(errors).length > 0 && `(${Object.keys(errors).length} field${Object.keys(errors).length === 1 ? "" : "s"})`}</span>}
         <SubmitButton>{submitLabel}</SubmitButton>
         <Link href={cancelHref} className={buttonClass.secondary}>Cancel</Link>
       </div>

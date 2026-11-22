@@ -1,19 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ProposalStatus } from "@prisma/client";
 import { updateProposalStatus } from "@/app/(staff)/profiles/[id]/matches/actions";
 import { PROPOSAL_LABELS } from "@/lib/proposal-labels";
 import { Field, inputClass } from "./ui";
 import { SubmitButton } from "./submit-button";
 
-/** Change stage + note. Extra fields appear for meeting / declined / matched. */
-export function ProposalUpdateForm({ id, status }: { id: string; status: ProposalStatus }) {
+type Props = { id: string; status: ProposalStatus };
+
+/**
+ * Change stage + note. Extra fields appear for meeting / declined / matched.
+ * Keyed by the saved status, so after a save (or a change made elsewhere) the whole form,
+ * including the chosen stage, starts again from what is stored.
+ */
+export function ProposalUpdateForm(props: Props) {
+  return <StageForm key={`${props.id}:${props.status}`} {...props} />;
+}
+
+function StageForm({ id, status }: Props) {
   const [next, setNext] = useState<ProposalStatus>(status);
+  const reasonsId = useId(); // unique per proposal (several forms on one page)
   return (
-    // key: remount after save so the select shows the stored status
     <div className="@container">
-    <form key={status} action={updateProposalStatus} className="grid grid-cols-1 gap-2 @xl:grid-cols-[12rem_1fr_auto] @xl:items-end">
+    <form action={updateProposalStatus} className="grid grid-cols-1 gap-2 @xl:grid-cols-[12rem_1fr_auto] @xl:items-end">
       <input type="hidden" name="id" value={id} />
       <Field label="Stage">
         <select name="status" value={next} onChange={(e) => setNext(e.target.value as ProposalStatus)} className={inputClass}>
@@ -31,15 +41,15 @@ export function ProposalUpdateForm({ id, status }: { id: string; status: Proposa
       )}
       {next === "DECLINED" && (
         <Field label="Reason" className="@xl:col-span-2">
-          <input name="declineReason" list="decline-reasons" className={inputClass} />
-          <datalist id="decline-reasons">
+          <input name="declineReason" list={reasonsId} className={inputClass} />
+          <datalist id={reasonsId}>
             {["Height", "Age", "Education", "Job / income", "Family background", "Wants NRI", "Does not want NRI", "Kundli did not match", "Photo", "Already engaged elsewhere"].map((r) => (
               <option key={r} value={r} />
             ))}
           </datalist>
         </Field>
       )}
-      {next === "MATCHED" && (
+      {next === "MATCHED" && status !== "MATCHED" && (
         <div className="space-y-1 @xl:col-span-3">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="markProfiles" defaultChecked className="size-4 accent-brand-600" />

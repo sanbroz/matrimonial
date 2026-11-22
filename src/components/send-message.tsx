@@ -65,19 +65,30 @@ export function SendMessageButton({
   const icon = channel === "whatsapp" ? "💬" : "✉️";
   return (
     <>
+      {/* Not `disabled`: a disabled button can't explain itself on a phone (no hover tooltips).
+          When unavailable, the dialog shows the reason instead of the form. */}
       <button
         type="button"
-        disabled={!!disabledReason}
+        aria-disabled={!!disabledReason}
         title={disabledReason ?? undefined}
         onClick={() => {
           setResult(null);
           dialog.current?.showModal();
         }}
-        className={cx(buttonClass[variant], className)}
+        className={cx(buttonClass[variant], disabledReason && "opacity-50", className)}
       >
         <span aria-hidden>{icon}</span> {label}
       </button>
       <dialog ref={dialog} className="m-auto w-[min(34rem,calc(100vw-2rem))] rounded-xl p-0 shadow-xl backdrop:bg-black/40">
+        {disabledReason ? (
+          <div className="space-y-3 p-5">
+            <h2 className="text-base font-semibold">{title}</h2>
+            <p className="text-sm text-zinc-700">Can&apos;t send right now: {disabledReason}.</p>
+            <div className="flex justify-end">
+              <button type="button" onClick={() => dialog.current?.close()} className={buttonClass.secondary}>OK</button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={submit} className="space-y-3 p-5">
           <div className="flex items-start justify-between gap-3">
             <h2 className="text-base font-semibold">{title}</h2>
@@ -112,6 +123,7 @@ export function SendMessageButton({
             )}
           </div>
         </form>
+        )}
       </dialog>
     </>
   );

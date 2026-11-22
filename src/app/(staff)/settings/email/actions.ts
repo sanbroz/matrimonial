@@ -35,10 +35,14 @@ export async function saveEmailSettings(fd: FormData) {
   };
   if (next.enabled && (!next.user || !next.passwordSealed)) back("Enter the Gmail address and App Password to turn email on", "error");
 
+  const extra = str(fd, "summaryExtra").split(/[,;\s]+/).filter(Boolean);
+  const bad = extra.filter((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+  // A single typo used to silently drop all extra recipients; say which one is wrong instead
+  if (bad.length) back(`Not an email address: ${bad.join(", ")}. Nothing was saved.`, "error");
   const summary = summaryOptionsSchema.parse({
     enabled: fd.get("summaryEnabled") === "on",
     time: str(fd, "summaryTime"),
-    extraRecipients: str(fd, "summaryExtra").split(/[,\s]+/).filter(Boolean),
+    extraRecipients: extra.map((e) => e.toLowerCase()),
   });
 
   await prisma.settings.update({ where: { id: 1 }, data: { emailConfig: next, summaryOptions: summary } });

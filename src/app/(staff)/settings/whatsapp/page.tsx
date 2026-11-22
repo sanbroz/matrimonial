@@ -18,7 +18,7 @@ export default async function WhatsAppSettingsPage({ searchParams }: { searchPar
   const [status, recent, s] = await Promise.all([
     getWhatsAppStatus(),
     prisma.outboundMessage.findMany({ where: { channel: "WHATSAPP" }, orderBy: { createdAt: "desc" }, take: 15 }),
-    prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { whatsappOptions: true } }),
+    prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { whatsappOptions: true, updatedAt: true } }),
   ]);
   const waOpts = readWhatsAppOptions(s.whatsappOptions);
 
@@ -33,7 +33,7 @@ export default async function WhatsAppSettingsPage({ searchParams }: { searchPar
       </Alert>
 
       <Card title="Linked number">
-        <LinkStatus initial={status} />
+        <LinkStatus key={`${status.status}:${status.me?.id ?? ""}`} initial={status} />
         {status.status !== "unavailable" && (
           <form action={unlinkWhatsApp} className="mt-4 border-t border-zinc-100 pt-3">
             <SubmitButton variant="danger" pendingText="Unlinking…" confirm="Unlink this WhatsApp number from the app?">Unlink number</SubmitButton>
@@ -48,7 +48,7 @@ export default async function WhatsAppSettingsPage({ searchParams }: { searchPar
             when offered. Your linked number stays linked.
           </p>
           <LibraryCard />
-          <form action={saveWhatsAppOptions} className="mt-4 flex flex-wrap items-end gap-3 border-t border-zinc-100 pt-4 text-sm">
+          <form key={s.updatedAt.toISOString()} action={saveWhatsAppOptions} className="mt-4 flex flex-wrap items-end gap-3 border-t border-zinc-100 pt-4 text-sm">
             <label className="flex items-center gap-2">
               <input type="checkbox" name="autoUpdate" defaultChecked={waOpts.autoUpdate} className="size-4 accent-brand-600" />
               Install new versions automatically
