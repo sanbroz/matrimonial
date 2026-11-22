@@ -38,6 +38,22 @@ export default async function BureauSettingsPage({ searchParams }: { searchParam
               <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" className="text-sm" />
             </div>
           </div>
+          <div className="sm:col-span-2">
+            <span className="mb-1 block text-xs font-medium text-zinc-600">Browser-tab icon (favicon)</span>
+            <div className="flex flex-wrap items-center gap-4">
+              {s.faviconType ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/api/favicon?v=${s.updatedAt.getTime()}`} alt="Browser-tab icon" className="size-10 rounded border border-zinc-200 bg-white p-0.5" />
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="removeFavicon" /> Use the standard icon</label>
+                </>
+              ) : (
+                <span className="text-sm text-zinc-500">Standard icon</span>
+              )}
+              <input type="file" name="favicon" accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/jpeg,image/webp" className="text-sm" aria-label="Browser-tab icon" />
+            </div>
+            <p className="mt-1 text-xs text-zinc-500">Shown in the browser tab, bookmarks and on share links. A square PNG (e.g. 256×256) works best, up to 256 KB.</p>
+          </div>
         </div>
       </Card>
 

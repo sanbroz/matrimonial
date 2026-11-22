@@ -10,6 +10,7 @@ import { IMAGE_TYPES, UploadError, deleteUpload, saveUpload } from "@/lib/storag
 import { BIODATA_SECTIONS, biodataOptionsSchema } from "@/lib/biodata-options";
 import { OPTION_CATEGORIES } from "@/lib/options-defaults";
 import { matchingOptionsSchema } from "@/lib/matching";
+import { MAX_FAVICON_BYTES, faviconType } from "@/lib/favicon";
 import { setSessionCookie } from "@/lib/auth/cookie";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -59,6 +60,17 @@ export async function saveBureauSettings(fd: FormData) {
     } catch (e) {
       back("/settings", e instanceof UploadError ? e.message : "Logo upload failed", "error");
     }
+  }
+  const icon = fd.get("favicon");
+  if (icon instanceof File && icon.size > 0) {
+    if (icon.size > MAX_FAVICON_BYTES) back("/settings", "The browser-tab icon must be smaller than 256 KB", "error");
+    const buf = new Uint8Array(await icon.arrayBuffer());
+    const type = faviconType(buf);
+    if (!type) back("/settings", "Browser-tab icon: use a PNG, ICO, JPG or WebP image", "error");
+    await prisma.settings.update({ where: { id: 1 }, data: { favicon: Buffer.from(buf), faviconType: type } });
+  }
+  if (fd.get("removeFavicon") === "on") {
+    await prisma.settings.update({ where: { id: 1 }, data: { favicon: null, faviconType: null } });
   }
   if (fd.get("removeLogo") === "on") {
     const current = await prisma.settings.findUnique({ where: { id: 1 }, select: { logoPath: true } });

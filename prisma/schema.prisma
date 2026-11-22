@@ -100,6 +100,9 @@ model Settings {
   email             String?
   address           String?
   logoPath          String?
+  /// Browser-tab icon for this bureau (overrides the platform's); PNG / ICO / JPG / WebP
+  favicon           Bytes?
+  faviconType       String?
   profileCodePrefix String   @default("PM")
   nextProfileNumber Int      @default(1001)
   registrationFee   Int      @default(0)
