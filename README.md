@@ -92,7 +92,8 @@ Photos and files are stored in `storage/uploads/` (outside `public/`) and are on
 
 ## Phase 6: going live
 
-See **[DEPLOY.md](DEPLOY.md)** for the step-by-step guide. In short: one Linux server in India running
+See **[DEPLOY.md](DEPLOY.md)** for the step-by-step guide and **[UPDATE.md](UPDATE.md)** for releasing and
+installing updates (in-app *Update* button or manual). In short: one Linux server in India running
 Docker (`docker-compose.prod.yml`): Caddy (automatic HTTPS), the app, PostgreSQL (not exposed), and a backup
 container that writes an **encrypted** backup (database + photos) every night, with optional off-site copies to
 Cloudflare R2 / Backblaze B2. `ops/deploy.sh` installs and updates, `ops/backup-now.sh` backs up,
