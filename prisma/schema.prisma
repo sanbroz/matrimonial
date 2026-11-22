@@ -185,6 +185,8 @@ enum LeadSource {
   REFERRAL
   SOCIAL_MEDIA
   NEWSPAPER
+  WEBSITE
+  EMAIL
   OTHER
 }
 
@@ -216,6 +218,9 @@ model Lead {
   profile      Profile?   @relation(fields: [profileId], references: [id], onDelete: SetNull)
   /// Sample data; removed by "Delete demo data"
   isDemo       Boolean    @default(false)
+  /// The public lead form link it came in through (website, Instagram campaign…)
+  leadFormId   String?
+  leadForm     LeadForm?  @relation(fields: [leadFormId], references: [id], onDelete: SetNull)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -224,6 +229,7 @@ model Lead {
 
   @@index([status])
   @@index([phone])
+  @@index([leadFormId])
 }
 
 // ───────────────────────── Profiles ─────────────────────────
@@ -631,4 +637,22 @@ model ProfileFormLink {
   createdAt       DateTime  @default(now())
 
   @@index([profileId])
+}
+
+/// A public enquiry form link for one place or campaign (website, email footer, Instagram post…).
+/// Every enquiry becomes a lead tagged with the link, so each channel can be measured.
+model LeadForm {
+  id          String   @id @default(cuid())
+  /// The public link: /join/<token>
+  token       String   @unique
+  name        String
+  /// website | email | whatsapp | facebook | instagram | campaign | other
+  channel     String
+  heading     String?
+  message     String?
+  active      Boolean  @default(true)
+  views       Int      @default(0)
+  createdById String
+  createdAt   DateTime @default(now())
+  leads       Lead[]
 }

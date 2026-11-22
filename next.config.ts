@@ -19,7 +19,15 @@ const nextConfig: NextConfig = {
   },
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      // Everything except the public enquiry form: never inside another site's frame
+      { source: "/((?!join/).*)", headers: securityHeaders },
+      // The enquiry form may be embedded on the bureau's own website (iframe)
+      {
+        source: "/join/:path*",
+        headers: [...securityHeaders.filter((h) => h.key !== "X-Frame-Options"), { key: "Content-Security-Policy", value: "frame-ancestors *" }],
+      },
+    ];
   },
 };
 

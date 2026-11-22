@@ -22,6 +22,8 @@ const TENANT_PUBLIC = [
   /^\/s\/[A-Za-z0-9_-]+(\/(p\/[a-z0-9]+|logo))?$/,
   // A family's self-fill profile form (checked by the page and its actions)
   /^\/f\/[A-Za-z0-9_-]+$/,
+  // Public enquiry forms for websites / campaigns (and their logo)
+  /^\/join\/[A-Za-z0-9_-]+(\/logo)?$/,
 ];
 const CONSOLE_PUBLIC = [/^\/console\/login$/];
 

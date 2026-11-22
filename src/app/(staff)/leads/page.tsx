@@ -18,11 +18,13 @@ const STATUS_TABS: { value: LeadStatus | "OPEN" | "ALL"; label: string }[] = [
 ];
 const TONE = { NEW: "blue", FOLLOW_UP: "amber", CONVERTED: "green", LOST: "zinc" } as const;
 
-export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string }> }) {
+export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; form?: string }> }) {
   await requireUser();
   const sp = await searchParams;
   const status = (STATUS_TABS.find((t) => t.value === sp.status)?.value ?? "OPEN") as (typeof STATUS_TABS)[number]["value"];
   const where: Prisma.LeadWhereInput = {};
+  const formFilter = sp.form ? await prisma.leadForm.findUnique({ where: { id: sp.form }, select: { id: true, name: true } }) : null;
+  if (formFilter) where.leadFormId = formFilter.id;
   if (status === "OPEN") where.status = { in: ["NEW", "FOLLOW_UP"] };
   else if (status !== "ALL") where.status = status;
   const q = sp.q?.trim();
@@ -42,18 +44,34 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     include: {
       followUps: { where: { done: false }, orderBy: { dueAt: "asc" }, take: 1 },
       profile: { select: { code: true } },
+      leadForm: { select: { name: true } },
     },
   });
 
   return (
     <>
-      <PageHeader title="Leads" subtitle="Enquiries that have not registered yet" actions={<ButtonLink href="/leads/new" variant="primary">Add lead</ButtonLink>} />
+      <PageHeader
+        title="Leads"
+        subtitle="Enquiries that have not registered yet"
+        actions={
+          <>
+            <ButtonLink href="/leads/forms">Lead forms</ButtonLink>
+            <ButtonLink href="/leads/new" variant="primary">Add lead</ButtonLink>
+          </>
+        }
+      />
+      {formFilter && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+          <span className="rounded-full bg-brand-50 px-3 py-1 text-brand-700">From: {formFilter.name}</span>
+          <Link href={`/leads?status=${status}`} className="text-zinc-500 hover:text-zinc-900">Show all leads</Link>
+        </div>
+      )}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1">
           {STATUS_TABS.map((t) => (
             <Link
               key={t.value}
-              href={`/leads?status=${t.value}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+              href={`/leads?status=${t.value}${q ? `&q=${encodeURIComponent(q)}` : ""}${formFilter ? `&form=${formFilter.id}` : ""}`}
               className={cx("rounded-md px-3 py-1.5 text-sm", status === t.value ? "bg-brand-600 text-white" : "bg-white text-zinc-700 hover:bg-zinc-100")}
             >
               {t.label}
@@ -91,7 +109,10 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                     </span>
                   </td>
                   <td className="px-3 py-2"><a href={`tel:${l.phone}`} className="text-zinc-700">{l.phone}</a></td>
-                  <td className="hidden px-3 py-2 text-zinc-600 sm:table-cell">{SOURCE_LABELS[l.source]}</td>
+                  <td className="hidden px-3 py-2 text-zinc-600 sm:table-cell">
+                    {SOURCE_LABELS[l.source]}
+                    {l.leadForm && <span className="block text-xs text-brand-700">{l.leadForm.name}</span>}
+                  </td>
                   <td className="px-3 py-2 text-xs">
                     {l.followUps[0] ? (
                       <span className={l.followUps[0].dueAt < new Date() ? "text-red-600" : "text-zinc-600"}>{formatDateTime(l.followUps[0].dueAt)}{l.followUps[0].dueAt < new Date() && " (overdue)"}</span>

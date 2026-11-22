@@ -109,6 +109,16 @@ and `/api/health` is there for uptime monitoring.
 - Message texts are editable in Settings → Message templates. Every message is logged on the profile.
 - Setup steps: DEPLOY.md, "Email and WhatsApp".
 
+## Lead forms for websites and campaigns (v2.6)
+
+- **Leads → Lead forms:** a separate public enquiry link for each place you advertise: website, email footer, WhatsApp, Facebook, Instagram, an ad campaign.
+- Each link has its own QR code (download it for posters and posts) and embed code (an iframe for your website).
+- **Stats per link:** visits, enquiries, and how many became profiles.
+- **Each enquiry becomes a lead:** tagged with its link and source, with a "Call new online enquiry" follow-up due now, and an email to owners when email is set up.
+- A repeat enquiry from the same number within 90 days adds a note to the existing lead instead of a duplicate.
+- **Spam protection:** a hidden trap field, a mobile number check, consent, and at most 5 enquiries per address per hour.
+- Only this form may be shown inside other websites; every other page still refuses to be framed.
+
 ## Families, fields and payments (v2.5)
 
 - **Name on shared biodatas:** profile code only (default), first name or full name. Set the default in Settings → Biodata; change it each time you share. Phones, addresses and parents' names are never included.

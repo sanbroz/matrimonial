@@ -5,5 +5,7 @@ export const SOURCE_LABELS = {
   REFERRAL: "Referral",
   SOCIAL_MEDIA: "Social media",
   NEWSPAPER: "Newspaper ad",
+  WEBSITE: "Website",
+  EMAIL: "Email",
   OTHER: "Other",
 } as const;
