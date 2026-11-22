@@ -43,12 +43,26 @@ Use SSH keys rather than a root password if your provider offers it.
 
 ## 3. Get the code onto the server
 
-Recommended: keep the project in a **private** GitHub repository and clone it:
+The code is in a **private** GitHub repository, so give the server a read-only **deploy key**:
 
 ```bash
-git clone https://github.com/YOU/bureau-crm.git /opt/bureau-crm
+ssh-keygen -t ed25519 -C "crm-server" -f ~/.ssh/github_deploy -N ""
+cat ~/.ssh/github_deploy.pub      # copy this line
+```
+
+On GitHub: repository → **Settings → Deploy keys → Add deploy key**, paste it, leave
+"Allow write access" **unticked**. Then on the server:
+
+```bash
+cat >> ~/.ssh/config <<'EOF'
+Host github.com
+  IdentityFile ~/.ssh/github_deploy
+EOF
+git clone git@github.com:sanbroz/matrimonial.git /opt/bureau-crm
 cd /opt/bureau-crm
 ```
+
+`git pull` for updates then works without any password.
 
 (Or copy the project folder with `scp`/WinSCP, leaving out `node_modules`, `.next`, `storage` and `.env*`.)
 
