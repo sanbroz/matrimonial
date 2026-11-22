@@ -11,7 +11,16 @@ import { classifyHost, effectiveHost } from "@/lib/tenant/host";
  *
  * Pages and actions find their bureau from the same address themselves (src/lib/tenant/context.ts).
  */
-const TENANT_PUBLIC = [/^\/login$/, /^\/forgot$/, /^\/reset\//, /^\/suspended$/, /^\/api\/health$/];
+const TENANT_PUBLIC = [
+  /^\/login$/,
+  /^\/forgot$/,
+  /^\/reset\//,
+  /^\/suspended$/,
+  /^\/api\/health$/,
+  /^\/api\/favicon$/,
+  // Share links (checked by the page / routes themselves)
+  /^\/s\/[A-Za-z0-9_-]+(\/(p\/[a-z0-9]+|logo))?$/,
+];
 const CONSOLE_PUBLIC = [/^\/console\/login$/];
 
 export async function middleware(req: NextRequest) {
@@ -19,8 +28,8 @@ export async function middleware(req: NextRequest) {
   const kind = classifyHost(host);
   const path = req.nextUrl.pathname;
 
-  // Health check (Docker, uptime monitors) works on any host
-  if (path === "/api/health") return NextResponse.next();
+  // Health check (Docker, uptime monitors) and the browser-tab icon work on any host
+  if (path === "/api/health" || path === "/api/favicon") return NextResponse.next();
   if (kind.kind === "invalid") return new NextResponse("Not found", { status: 404 });
 
   if (kind.kind === "console") {

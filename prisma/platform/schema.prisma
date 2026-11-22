@@ -108,5 +108,8 @@ model PlatformSettings {
   summarySentOn String?
   /// WhatsApp library auto-update options (see whatsapp-options.ts)
   whatsappOptions Json?
+  /// Browser-tab icon for the console and every bureau (PNG / ICO / JPG / WebP, small)
+  favicon     Bytes?
+  faviconType String?
   updatedAt   DateTime @updatedAt
 }

@@ -575,3 +575,29 @@ model Due {
   @@index([profileId])
   @@index([proposalId])
 }
+
+// ───────────────────────── Share links ─────────────────────────
+
+/// A public, expiring link showing one or more biodatas (no login). Only biodata content is shown:
+/// never names, phones or addresses. `sections` / `layout` / `lang` are the choices made when sharing.
+model ShareLink {
+  id           String    @id @default(cuid())
+  /// Random, unguessable part of the URL: /s/<token>
+  token        String    @unique
+  title        String?
+  profileIds   String[]
+  /// The family it was shared with (optional)
+  forProfileId String?
+  layout       String
+  sections     String[]
+  lang         String
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  views        Int       @default(0)
+  lastViewedAt DateTime?
+  createdById  String
+  createdAt    DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([forProfileId])
+}

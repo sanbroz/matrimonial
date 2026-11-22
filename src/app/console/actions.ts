@@ -25,6 +25,7 @@ import { savePlatformWhatsAppOptions, readPlatformWhatsAppOptions } from "@/lib/
 import { deleteDemoForCurrentBureau, loadDemoForCurrentBureau } from "@/lib/services/demo";
 import { DemoDataError } from "@/lib/demo-data";
 import { runAsTenant } from "@/lib/tenant/context";
+import { MAX_FAVICON_BYTES, faviconType } from "@/lib/favicon";
 
 const DUMMY_HASH = "$2b$10$jPc0LyIrKDV8zfasxi6jgO7Sfa0R5yqB9/8o5sqelufJ.mNcJoov.";
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -377,4 +378,29 @@ export async function tenantDemoData(fd: FormData) {
     if (isRedirect(e)) throw e;
     go(path, e instanceof DemoDataError ? e.message : `Demo data not added: ${errMsg(e)}`, "error");
   }
+}
+
+// ───────────── favicon ─────────────
+
+export async function saveFavicon(fd: FormData) {
+  await requireConsoleAdmin();
+  if (fd.get("remove") === "1") {
+    await platform.platformSettings.update({ where: { id: 1 }, data: { favicon: null, faviconType: null } });
+    revalidatePath("/", "layout");
+    go("/console/settings", "Favicon removed; the standard icon is used again");
+  }
+  const f = fd.get("favicon");
+  if (!(f instanceof File) || f.size === 0) go("/console/settings", "Choose an image file", "error");
+  const file = f as File;
+  if (file.size > MAX_FAVICON_BYTES) go("/console/settings", "The icon must be smaller than 256 KB", "error");
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const type = faviconType(buf);
+  if (!type) go("/console/settings", "Use a PNG, ICO, JPG or WebP image (SVG isn't accepted)", "error");
+  await platform.platformSettings.upsert({
+    where: { id: 1 },
+    update: { favicon: Buffer.from(buf), faviconType: type },
+    create: { id: 1, favicon: Buffer.from(buf), faviconType: type },
+  });
+  revalidatePath("/", "layout");
+  go("/console/settings", "Favicon saved. Browsers may need a refresh to show it.");
 }

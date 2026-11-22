@@ -4,7 +4,7 @@ import { readEmailConfig, readSummaryOptions } from "@/lib/email-config";
 import { Badge, Card, Field, PageHeader, inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { Flash } from "@/app/(staff)/settings/flash";
-import { addSuperAdmin, changeConsolePassword, savePlatformEmail, sendPlatformTestEmail, setSuperAdminActive } from "../../actions";
+import { addSuperAdmin, changeConsolePassword, saveFavicon, savePlatformEmail, sendPlatformTestEmail, setSuperAdminActive } from "../../actions";
 
 export const metadata = { title: "Settings" };
 
@@ -50,6 +50,30 @@ export default async function ConsoleSettingsPage({ searchParams }: { searchPara
           <form action={sendPlatformTestEmail} className="mt-3 border-t border-zinc-100 pt-3">
             <SubmitButton variant="secondary" pendingText="Sending…">Send me a test email</SubmitButton>
           </form>
+        </Card>
+
+        <Card title="Favicon (browser-tab icon)">
+          <p className="mb-3 text-sm text-zinc-600">
+            Shown in the browser tab and bookmarks for the console and every bureau. A square PNG of 64×64 or 180×180 pixels works
+            best; ICO, JPG and WebP are fine too (up to 256 KB).
+          </p>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={s.faviconType ? `/api/favicon?v=${s.updatedAt.getTime()}` : "/favicon.ico"} alt="" className="size-8 rounded" />
+              <span className="text-zinc-600">{s.faviconType ? "Your icon" : "Standard icon"}</span>
+            </div>
+            <form action={saveFavicon} className="flex flex-wrap items-center gap-2">
+              <input name="favicon" type="file" required accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/jpeg,image/webp" className="text-sm" aria-label="Favicon image" />
+              <SubmitButton variant="secondary" pendingText="Uploading…">Upload</SubmitButton>
+            </form>
+            {s.faviconType && (
+              <form action={saveFavicon}>
+                <input type="hidden" name="remove" value="1" />
+                <SubmitButton variant="ghost" pendingText="…">Use the standard icon</SubmitButton>
+              </form>
+            )}
+          </div>
         </Card>
 
         <Card title="Super admins">

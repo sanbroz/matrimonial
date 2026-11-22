@@ -73,7 +73,14 @@ export interface BiodataProfile {
 }
 
 export type Row = [label: string, value: string];
-export interface BiodataSectionOut { key: BiodataSection; title: string; rows: Row[]; text?: string }
+export interface BiodataSectionOut {
+  key: BiodataSection;
+  title: string;
+  rows: Row[];
+  /** Field key of each row (same order as rows), for compact layouts that pick fields */
+  keys?: LabelKey[];
+  text?: string;
+}
 export interface BiodataContent {
   lang: Lang;
   title: string;
@@ -82,6 +89,8 @@ export interface BiodataContent {
   summary: string;
   sections: BiodataSectionOut[];
   contactLabel: string;
+  /** Included values by field key (only from the sections being shared), e.g. facts.age */
+  facts: Partial<Record<LabelKey, string>>;
 }
 
 function heightText(cm: number | null, lang: Lang) {
@@ -113,8 +122,10 @@ export function buildBiodata(p: BiodataProfile, opts: BiodataOptions, lang: Lang
   const L = (k: LabelKey) => t(k, lang);
   const v = (x: string | null | undefined) => tv(x, lang);
   const age = ageOn(p.dob, now);
-  const rows = (pairs: [LabelKey, string | null | undefined | false][]): Row[] =>
-    pairs.filter(([, val]) => val !== null && val !== undefined && val !== false && String(val).trim() !== "").map(([k, val]) => [L(k), String(val)]);
+  const keep = (pairs: [LabelKey, string | null | undefined | false][]) =>
+    pairs.filter(([, val]) => val !== null && val !== undefined && val !== false && String(val).trim() !== "") as [LabelKey, string][];
+  const rows = (pairs: [LabelKey, string | null | undefined | false][]): Row[] => keep(pairs).map(([k, val]) => [L(k), String(val)]);
+  const both = (pairs: [LabelKey, string | null | undefined | false][]) => ({ rows: rows(pairs), keys: keep(pairs).map(([k]) => k) });
 
   const count = (n: number | null, married: number | null) =>
     n == null ? null : `${n}${married ? ` (${married} ${L("married")})` : ""}`;
@@ -124,7 +135,7 @@ export function buildBiodata(p: BiodataProfile, opts: BiodataOptions, lang: Lang
     basic: () => ({
       key: "basic",
       title: L("basic"),
-      rows: rows([
+      ...both([
         ["dob", dateText(p.dob, lang)],
         ["age", age != null ? `${age} ${L("years")}` : null],
         ["height", heightText(p.heightCm, lang)],
@@ -143,7 +154,7 @@ export function buildBiodata(p: BiodataProfile, opts: BiodataOptions, lang: Lang
     religion: () => ({
       key: "religion",
       title: L("religion"),
-      rows: rows([
+      ...both([
         ["religionField", v(p.religion)],
         ["caste", join(v(p.caste), p.subCaste)],
         ["sikhStatus", v(p.sikhStatus)],
@@ -155,7 +166,7 @@ export function buildBiodata(p: BiodataProfile, opts: BiodataOptions, lang: Lang
     horoscope: () => ({
       key: "horoscope",
       title: L("horoscope"),
-      rows: rows([
+      ...both([
         ["birthTime", p.birthTime],
         ["birthPlace", v(p.birthPlace)],
         ["manglik", v(p.manglik)],
@@ -166,7 +177,7 @@ export function buildBiodata(p: BiodataProfile, opts: BiodataOptions, lang: Lang
     career: () => ({
       key: "career",
       title: L("career"),
-      rows: rows([
+      ...both([
         ["education", join(v(p.education), p.educationDetail)],
         ["profession", v(p.profession)],
         ["income", p.annualIncome],
@@ -175,7 +186,7 @@ export function buildBiodata(p: BiodataProfile, opts: BiodataOptions, lang: Lang
     location: () => ({
       key: "location",
       title: L("location"),
-      rows: rows([
+      ...both([
         ["livesIn", join(v(p.city), v(p.state), v(p.country))],
         ["nativeDistrict", v(p.nativeDistrict)],
         ["visaStatus", p.country && p.country.toLowerCase() !== "india" ? v(p.visaStatus) : null],
@@ -185,7 +196,7 @@ export function buildBiodata(p: BiodataProfile, opts: BiodataOptions, lang: Lang
     family: () => ({
       key: "family",
       title: L("family"),
-      rows: rows([
+      ...both([
         ["father", v(p.fatherOccupation)],
         ["mother", v(p.motherOccupation)],
         ["brothers", count(p.brothers, p.brothersMarried)],
@@ -202,7 +213,7 @@ export function buildBiodata(p: BiodataProfile, opts: BiodataOptions, lang: Lang
       return {
         key: "preference",
         title: L("preference"),
-        rows: rows([
+        ...both([
           ["prefAge", range(pr.ageMin ? String(pr.ageMin) : "", pr.ageMax ? `${pr.ageMax} ${L("years")}` : "")],
           ["prefHeight", range(heightText(pr.heightMinCm, lang).split(" ")[0], heightText(pr.heightMaxCm, lang).split(" ")[0])],
           ["prefReligion", pr.religions.map(v).join(", ")],
@@ -223,23 +234,29 @@ export function buildBiodata(p: BiodataProfile, opts: BiodataOptions, lang: Lang
     .filter((k) => opts.sections.includes(k))
     .map((k) => all[k]())
     .filter((s): s is BiodataSectionOut => !!s && (s.rows.length > 0 || !!s.text));
+  const facts: Partial<Record<LabelKey, string>> = {};
+  for (const sec of sections) sec.keys?.forEach((k, i) => (facts[k] = sec.rows[i][1]));
+  const has = (k: BiodataSection) => opts.sections.includes(k);
+  const place = p.country && p.country.toLowerCase() !== "india" ? p.country : p.city;
 
   return {
     lang,
     title: L(p.gender === "FEMALE" ? "brideBiodata" : "groomBiodata"),
     code: p.code,
     codeLabel: L("profileCode"),
+    // Only details from the sections being shared (sharing "basic only" must not leak caste etc. here)
     summary: [
-      age != null ? `${age} ${L("years")}` : null,
-      heightText(p.heightCm, lang).split(" ")[0] || null,
-      v(p.religion) || null,
-      v(p.caste) || null,
-      v(p.education) || null,
-      v(p.country && p.country.toLowerCase() !== "india" ? p.country : p.city) || null,
+      has("basic") && age != null ? `${age} ${L("years")}` : null,
+      (has("basic") && heightText(p.heightCm, lang).split(" ")[0]) || null,
+      (has("religion") && v(p.religion)) || null,
+      (has("religion") && v(p.caste)) || null,
+      (has("career") && v(p.education)) || null,
+      (has("location") && v(place)) || null,
     ]
       .filter(Boolean)
       .join(" · "),
     sections,
     contactLabel: L("contact"),
+    facts,
   };
 }

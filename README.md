@@ -109,6 +109,18 @@ and `/api/health` is there for uptime monitoring.
 - Message texts are editable in Settings → Message templates. Every message is logged on the profile.
 - Setup steps: DEPLOY.md, "Email and WhatsApp".
 
+## Sharing several profiles (v2.2)
+
+- **Select** profiles with the check boxes, in Profiles or on a family's suggested matches, then click **Share selected**.
+- **Layouts:** full biodata (one page each), 2 per page, 4 cards per page, or a compact list.
+- **Details:** choose which details to include. There are presets: everything, basic info only, no photos, and minimal.
+- **Export:** one multi-page PDF, images, the phone's share sheet, or print.
+- **Share link:** a public, expiring page (3, 7, 14 or 30 days) that the family opens without signing in.
+  - It shows profile codes only, never names, phones or addresses, and photos only if photos were chosen.
+  - Views are counted, and a link can be switched off at any time on the **Share links** page.
+  - Sending the link on WhatsApp or by email can record the proposals as shared with that family.
+- **Favicon:** the platform's browser-tab icon is uploaded in the console (Settings).
+
 ## Multiple bureaus (v2)
 
 Many bureaus on one server, each on its own subdomain with separate data, files, logins, WhatsApp and backups,

@@ -12,6 +12,9 @@ export const TEMPLATE_KEYS = {
   meeting: "WhatsApp: meeting reminder",
   receiptWhatsApp: "WhatsApp: receipt caption",
   receiptEmailBody: "Email: receipt message",
+  shareWhatsApp: "WhatsApp: several biodatas (share link)",
+  shareEmailSubject: "Email: several biodatas subject",
+  shareEmailBody: "Email: several biodatas message",
 } as const;
 
 export type TemplateKey = keyof typeof TEMPLATE_KEYS;
@@ -27,6 +30,9 @@ export const TEMPLATE_VARS: Record<TemplateKey, string[]> = {
   meeting: ["name", "code", "other_code", "meeting_time", "bureau", "bureau_phone"],
   receiptWhatsApp: ["name", "code", "receipt_no", "amount", "for", "bureau"],
   receiptEmailBody: ["name", "code", "receipt_no", "amount", "for", "bureau", "bureau_phone"],
+  shareWhatsApp: ["name", "count", "codes", "link", "valid_till", "bureau", "bureau_phone"],
+  shareEmailSubject: ["count", "bureau"],
+  shareEmailBody: ["name", "count", "codes", "link", "valid_till", "bureau", "bureau_phone"],
 };
 
 export const DEFAULT_TEMPLATES: Templates = {
@@ -44,6 +50,11 @@ export const DEFAULT_TEMPLATES: Templates = {
   receiptWhatsApp: "Thank you {name} ji 🙏 Receipt {receipt_no}: {amount} received for {for}.\n— {bureau}",
   receiptEmailBody:
     "Dear {name} ji,\n\nThank you for your payment. Receipt {receipt_no}: {amount} received for {for} (profile {code}).\n\nRegards,\n{bureau}\n{bureau_phone}",
+  shareWhatsApp:
+    "Sat Sri Akal {name} ji 🙏\nHere are {count} profiles that may suit your family ({codes}):\n{link}\nThe link works until {valid_till}. Let us know which ones you would like to take forward.\n— {bureau} {bureau_phone}",
+  shareEmailSubject: "{count} matching profiles from {bureau}",
+  shareEmailBody:
+    "Sat Sri Akal {name} ji,\n\nHere are {count} profiles that may suit your family ({codes}). View them online:\n{link}\n(the link works until {valid_till}). The PDF is attached as well.\n\nDo let us know which ones you would like to take forward.\n\nRegards,\n{bureau}\n{bureau_phone}",
 };
 
 export function readTemplates(json: unknown): Templates {

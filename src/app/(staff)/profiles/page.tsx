@@ -8,6 +8,7 @@ import { ageFrom, formatHeight, nowIST } from "@/lib/format";
 import { MARITAL_LABELS } from "@/lib/profile-fields";
 import { Alert, Badge, ButtonLink, EmptyState, PageHeader, buttonClass, cx, inputClass } from "@/components/ui";
 import { deleteSearch, saveSearch } from "./saved-search-actions";
+import { SelectionBar } from "@/components/small-client";
 
 export const metadata = { title: "Profiles" };
 
@@ -80,7 +81,12 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
       <PageHeader
         title="Profiles"
         subtitle={`${total} found`}
-        actions={<ButtonLink href="/profiles/new" variant="primary">Add profile</ButtonLink>}
+        actions={
+          <>
+            <ButtonLink href="/shares">Share links</ButtonLink>
+            <ButtonLink href="/profiles/new" variant="primary">Add profile</ButtonLink>
+          </>
+        }
       />
       {sp.deleted && <div className="mb-4"><Alert tone="green">Profile {sp.deleted} was deleted permanently.</Alert></div>}
 
@@ -166,9 +172,12 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
         <EmptyState>No profiles match. <Link href="/profiles/new" className="text-brand-700 underline">Add one</Link> or <Link href="/import" className="text-brand-700 underline">import from Excel</Link>.</EmptyState>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
+          {/* Tick several and share them together (one PDF / images / link) */}
+          <form id="share-select" action="/share" />
           <table className="w-full text-sm">
             <thead className="bg-zinc-50 text-left text-xs text-zinc-500">
               <tr>
+                <th className="w-8 py-2 pl-3"><span className="sr-only">Select</span></th>
                 <th className="px-3 py-2">Profile</th>
                 <th className="px-3 py-2">Age / height</th>
                 <th className="px-3 py-2">Community</th>
@@ -180,6 +189,9 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
             <tbody className="divide-y divide-zinc-100">
               {profiles.map((p) => (
                 <tr key={p.id} className="hover:bg-zinc-50">
+                  <td className="py-2 pl-3">
+                    <input type="checkbox" name="id" value={p.id} form="share-select" aria-label={`Select ${p.code} to share`} className="size-4 accent-brand-600" />
+                  </td>
                   <td className="px-3 py-2">
                     <Link href={`/profiles/${p.id}`} className="flex items-center gap-3">
                       {p.photos[0] ? (
@@ -223,6 +235,7 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
           </table>
         </div>
       )}
+      <SelectionBar formId="share-select" label="Share selected" />
 
       {pages > 1 && (
         <div className="mt-4 flex items-center justify-center gap-3 text-sm">

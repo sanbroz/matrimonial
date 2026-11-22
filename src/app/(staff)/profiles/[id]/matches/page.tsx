@@ -9,6 +9,7 @@ import { MARITAL_LABELS } from "@/lib/profile-fields";
 import { Alert, Badge, ButtonLink, Card, EmptyState, PageHeader, cx } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { shareMatch } from "./actions";
+import { SelectionBar } from "@/components/small-client";
 
 export const metadata = { title: "Suggested matches" };
 
@@ -75,6 +76,12 @@ export default async function MatchesPage({ params, searchParams }: { params: Pr
       {shown.length === 0 ? (
         <EmptyState>No suitable profiles right now. Check the ruled-out list below, or loosen the client&apos;s preferences.</EmptyState>
       ) : (
+        <>
+        {/* Tick several and share them together (one PDF / link) */}
+        <form id="share-select" action="/share" className="mb-2 text-xs text-zinc-500">
+          <input type="hidden" name="for" value={client.id} />
+          Tick profiles to share several together (one PDF, images or a link).
+        </form>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {shown.map((s) => {
             const d = byId.get(s.candidateId)!;
@@ -82,6 +89,14 @@ export default async function MatchesPage({ params, searchParams }: { params: Pr
             return (
               <Card key={s.candidateId} className="flex flex-col">
                 <div className="flex gap-3">
+                  <input
+                    type="checkbox"
+                    name="id"
+                    value={d.id}
+                    form="share-select"
+                    aria-label={`Select ${d.code} to share`}
+                    className="mt-1 size-4 shrink-0 accent-brand-600"
+                  />
                   {d.photos[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={fileUrl(d.photos[0].path)} alt="" className="size-20 shrink-0 rounded-md object-cover" />
@@ -127,6 +142,8 @@ export default async function MatchesPage({ params, searchParams }: { params: Pr
             );
           })}
         </div>
+        <SelectionBar formId="share-select" label={`Share with ${client.code}`} />
+        </>
       )}
       {!all && result.suggested.length > SHOW && (
         <div className="mt-4 text-center">

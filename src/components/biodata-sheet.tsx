@@ -18,7 +18,9 @@ export function BiodataSheet({
   options,
   branding,
   photoUrls,
+  id = "biodata-sheet",
 }: {
+  id?: string;
   content: BiodataContent;
   options: BiodataOptions;
   branding: SheetBranding;
@@ -32,7 +34,7 @@ export function BiodataSheet({
 
   return (
     <div
-      id="biodata-sheet"
+      id={id}
       lang={content.lang === "pa" ? "pa" : "en"}
       className="print-sheet relative flex flex-col bg-white text-[13px] leading-snug text-zinc-800"
       style={{ width: 794, minHeight: 1123, fontFamily: '"Noto Sans Gurmukhi", "Segoe UI", Arial, sans-serif' }}

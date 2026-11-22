@@ -10,7 +10,7 @@ import { nowIST } from "@/lib/format";
 import { readBiodataOptions } from "@/lib/biodata-options";
 import { Alert, ButtonLink, Card, cx, inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
-import { BiodataSheet } from "./biodata-sheet";
+import { BiodataSheet } from "@/components/biodata-sheet";
 import { ExportButtons } from "./export-buttons";
 import { shareByCode, shareMatch } from "../matches/actions";
 import { SendMessageButton } from "@/components/send-message";
@@ -76,6 +76,7 @@ export default async function BiodataPage({
             </p>
           </div>
           <div className="flex gap-2">
+            <ButtonLink href={`/share?id=${profile.id}${client ? `&for=${client.id}` : ""}&lang=${lang}`}>Choose details / link</ButtonLink>
             <ButtonLink href={`/profiles/${profile.id}`}>Back to profile</ButtonLink>
             {user.role === "OWNER" && <ButtonLink href="/settings/biodata">Biodata settings</ButtonLink>}
           </div>

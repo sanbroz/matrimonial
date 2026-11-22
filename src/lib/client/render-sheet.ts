@@ -37,3 +37,30 @@ export async function jpegToPdf(jpeg: Blob): Promise<Blob> {
 export async function renderPdf(elementId: string): Promise<Blob> {
   return jpegToPdf(await renderJpeg(elementId));
 }
+
+async function blobToDataUrl(b: Blob) {
+  return new Promise<string>((res) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result as string);
+    r.readAsDataURL(b);
+  });
+}
+
+/** Several A4 page elements → one multi-page A4 PDF. */
+export async function renderPdfPages(elementIds: string[]): Promise<Blob> {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  const pageW = 210, pageH = 297;
+  for (let i = 0; i < elementIds.length; i++) {
+    const dataUrl = await blobToDataUrl(await renderJpeg(elementIds[i]));
+    const img = await new Promise<HTMLImageElement>((res) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.src = dataUrl;
+    });
+    const ratio = Math.min(pageW / img.width, pageH / img.height);
+    if (i > 0) doc.addPage();
+    doc.addImage(dataUrl, "JPEG", (pageW - img.width * ratio) / 2, 0, img.width * ratio, img.height * ratio);
+  }
+  return doc.output("blob");
+}

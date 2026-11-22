@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { renderJpeg, renderPdf } from "@/lib/client/render-sheet";
+import { renderJpeg, renderPdf, renderPdfPages } from "@/lib/client/render-sheet";
 import { buttonClass, cx, inputClass, Field } from "./ui";
 
 export type SendAction = (fd: FormData) => Promise<{ ok: boolean; error?: string; note?: string }>;
@@ -33,7 +33,8 @@ export function SendMessageButton({
   defaultText: string;
   /** Hidden values passed to the action (ids, kind…) */
   fields?: Record<string, string>;
-  attach?: { elementId: string; as: "jpg" | "pdf"; filename: string };
+  /** elementId: one sheet, or several page ids for a multi-page PDF */
+  attach?: { elementId: string | string[]; as: "jpg" | "pdf"; filename: string };
   variant?: keyof typeof buttonClass;
   className?: string;
   /** Show the button disabled with this explanation (e.g. WhatsApp not linked) */
@@ -50,7 +51,8 @@ export function SendMessageButton({
     setResult(null);
     try {
       if (attach) {
-        const blob = attach.as === "pdf" ? await renderPdf(attach.elementId) : await renderJpeg(attach.elementId);
+        const ids = Array.isArray(attach.elementId) ? attach.elementId : [attach.elementId];
+        const blob = attach.as === "pdf" ? (ids.length > 1 ? await renderPdfPages(ids) : await renderPdf(ids[0])) : await renderJpeg(ids[0]);
         fd.set("file", new File([blob], attach.filename, { type: attach.as === "pdf" ? "application/pdf" : "image/jpeg" }));
       }
       const r = await action(fd);
