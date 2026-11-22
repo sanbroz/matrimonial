@@ -6,13 +6,13 @@ import { classifyHost, normalizeHost } from "@/lib/tenant/host";
  * Routes each request by host and does a fast login check. First line of defence only:
  * every page, action and route also checks the user (and the bureau) on the server.
  *
- *   console host  (bureau.<domain>)  → /console/* pages, super admin login
+ *   console host  (bureau.<domain>)  → /console/* pages (and / → /console), super admin login
  *   bureau hosts  (<slug>.<domain> or a custom domain) → the bureau app
  *
  * The x-mb-host / x-mb-area headers are always overwritten here, so a browser can't fake them.
  */
 const TENANT_PUBLIC = [/^\/login$/, /^\/forgot$/, /^\/reset\//, /^\/suspended$/, /^\/api\/health$/];
-const CONSOLE_PUBLIC = [/^\/login$/, /^\/api\/health$/];
+const CONSOLE_PUBLIC = [/^\/console\/login$/];
 
 export async function middleware(req: NextRequest) {
   const host = normalizeHost(req.headers.get("host"));
@@ -27,20 +27,18 @@ export async function middleware(req: NextRequest) {
   if (kind.kind === "invalid") return new NextResponse("Not found", { status: 404 });
 
   if (kind.kind === "console") {
-    if (path.startsWith("/console")) return new NextResponse("Not found", { status: 404 });
-    const isApi = path.startsWith("/api/");
-    if (isApi && !path.startsWith("/api/console/")) return new NextResponse("Not found", { status: 404 });
+    // The console lives at real /console/* paths (no rewrites: server-action redirects bypass them)
+    if (path === "/") return redirectTo(req, "/console");
+    const isApi = path.startsWith("/api/console/");
+    if (!isApi && path !== "/console" && !path.startsWith("/console/")) return new NextResponse("Not found", { status: 404 });
     if (!CONSOLE_PUBLIC.some((r) => r.test(path))) {
       const session = await verifyConsoleSession(req.cookies.get(CONSOLE_COOKIE)?.value);
       if (!session) {
         if (isApi) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-        return redirectTo(req, "/login");
+        return redirectTo(req, "/console/login");
       }
     }
-    if (isApi) return NextResponse.next({ request: { headers: fwd } });
-    const url = req.nextUrl.clone();
-    url.pathname = `/console${path === "/" ? "" : path}`;
-    return NextResponse.rewrite(url, { request: { headers: fwd } });
+    return NextResponse.next({ request: { headers: fwd } });
   }
 
   // Bureau host: console pages don't exist here

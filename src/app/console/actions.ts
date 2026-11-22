@@ -49,12 +49,12 @@ export async function consoleLogin(_prev: { error?: string; email?: string } | u
   loginLimits.email.reset(key);
   loginLimits.ip.undo(ip);
   await setConsoleCookie(admin);
-  redirect("/");
+  redirect("/console");
 }
 
 export async function consoleLogout() {
   (await cookies()).delete(CONSOLE_COOKIE);
-  redirect("/login");
+  redirect("/console/login");
 }
 
 // ───────────── bureaus ─────────────
@@ -79,13 +79,13 @@ export async function createTenantAction(_prev: { error?: string; values?: Recor
     if (!(e instanceof TenantError)) console.error("[console] create bureau failed", e);
     return { error: e instanceof TenantError ? e.message : `Could not create the bureau: ${errMsg(e)}`, values };
   }
-  redirect(`/tenants/${id}?ok=${encodeURIComponent("Bureau created. Send the owner their address and login.")}`);
+  redirect(`/console/tenants/${id}?ok=${encodeURIComponent("Bureau created. Send the owner their address and login.")}`);
 }
 
 export async function updateTenantDetails(fd: FormData) {
   await requireConsoleAdmin();
   const id = str(fd, "id");
-  const path = `/tenants/${id}`;
+  const path = `/console/tenants/${id}`;
   const name = str(fd, "name");
   if (!name) go(path, "Enter the bureau name", "error");
   const fee = Number(str(fd, "fee") || 0);
@@ -121,14 +121,14 @@ export async function setTenantStatus(fd: FormData) {
     data: { status, suspendedReason: status === "SUSPENDED" ? str(fd, "reason") || "Suspended by the platform" : null },
   });
   invalidateTenantCache();
-  revalidatePath(`/tenants/${id}`);
-  go(`/tenants/${id}`, status === "SUSPENDED" ? "Bureau suspended: its staff can't sign in until you resume it" : "Bureau is active");
+  revalidatePath(`/console/tenants/${id}`);
+  go(`/console/tenants/${id}`, status === "SUSPENDED" ? "Bureau suspended: its staff can't sign in until you resume it" : "Bureau is active");
 }
 
 export async function recordTenantPayment(fd: FormData) {
   const admin = await requireConsoleAdmin();
   const id = str(fd, "id");
-  const path = `/tenants/${id}`;
+  const path = `/console/tenants/${id}`;
   const amount = Number(str(fd, "amount"));
   if (!Number.isInteger(amount) || amount <= 0) go(path, "Enter the amount in whole rupees", "error");
   const paidAt = dateOrNull(str(fd, "paidAt"));
@@ -160,15 +160,15 @@ export async function voidTenantPayment(fd: FormData) {
   await requireConsoleAdmin();
   const id = str(fd, "id");
   await platform.tenantPayment.updateMany({ where: { id: str(fd, "paymentId"), tenantId: id, voidedAt: null }, data: { voidedAt: new Date() } });
-  revalidatePath(`/tenants/${id}`);
-  go(`/tenants/${id}`, "Payment voided. Adjust the next due date if needed.");
+  revalidatePath(`/console/tenants/${id}`);
+  go(`/console/tenants/${id}`, "Payment voided. Adjust the next due date if needed.");
 }
 
 export async function addTenantDomain(fd: FormData) {
   await requireConsoleAdmin();
   const id = str(fd, "id");
   const host = normalizeHost(str(fd, "host"));
-  const path = `/tenants/${id}`;
+  const path = `/console/tenants/${id}`;
   if (!/^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host)) go(path, "Enter a domain like crm.yourbureau.in", "error");
   if (classifyHost(host).kind !== "custom") go(path, "Use the bureau's own domain; subdomains of the platform are automatic", "error");
   if (await platform.tenantDomain.findUnique({ where: { host } })) go(path, "That domain is already added", "error");
@@ -194,24 +194,24 @@ export async function updateTenantDomain(fd: FormData) {
     });
   }
   invalidateTenantCache();
-  revalidatePath(`/tenants/${id}`);
-  go(`/tenants/${id}`, "Domains updated");
+  revalidatePath(`/console/tenants/${id}`);
+  go(`/console/tenants/${id}`, "Domains updated");
 }
 
 export async function deleteTenantAction(fd: FormData) {
   await requireConsoleAdmin();
   const id = str(fd, "id");
   const t = await getTenantById(id);
-  if (!t) go("/", "Bureau not found", "error");
-  if (str(fd, "confirmSlug") !== t!.slug) go(`/tenants/${id}`, `Type the subdomain "${t!.slug}" to confirm deleting`, "error");
+  if (!t) go("/console", "Bureau not found", "error");
+  if (str(fd, "confirmSlug") !== t!.slug) go(`/console/tenants/${id}`, `Type the subdomain "${t!.slug}" to confirm deleting`, "error");
   let r;
   try {
     r = await deleteTenant(id);
   } catch (e) {
-    go(`/tenants/${id}`, `Not deleted: ${errMsg(e)}`, "error");
+    go(`/console/tenants/${id}`, `Not deleted: ${errMsg(e)}`, "error");
   }
-  revalidatePath("/");
-  go("/", `Bureau "${t!.slug}" deleted${r?.finalBackup ? `. Final backup kept: ${r.finalBackup}` : ""}`);
+  revalidatePath("/console");
+  go("/console", `Bureau "${t!.slug}" deleted${r?.finalBackup ? `. Final backup kept: ${r.finalBackup}` : ""}`);
 }
 
 // ───────────── backups ─────────────
@@ -220,13 +220,13 @@ export async function backupTenantNow(fd: FormData) {
   await requireConsoleAdmin();
   const id = str(fd, "id");
   const t = await getTenantById(id);
-  if (!t) go("/", "Bureau not found", "error");
+  if (!t) go("/console", "Bureau not found", "error");
   try {
     const file = await takeTenantBackup(t!, "manual");
-    go(`/tenants/${id}#backups`, `Backup created: ${file}`);
+    go(`/console/tenants/${id}#backups`, `Backup created: ${file}`);
   } catch (e) {
     if (isRedirect(e)) throw e;
-    go(`/tenants/${id}#backups`, `Backup failed: ${errMsg(e)}`, "error");
+    go(`/console/tenants/${id}#backups`, `Backup failed: ${errMsg(e)}`, "error");
   }
 }
 
@@ -234,14 +234,14 @@ export async function restoreTenantAction(fd: FormData) {
   await requireConsoleAdmin();
   const id = str(fd, "id");
   const t = await getTenantById(id);
-  if (!t) go("/", "Bureau not found", "error");
-  if (str(fd, "confirm") !== "RESTORE") go(`/tenants/${id}#backups`, "Type RESTORE to confirm", "error");
+  if (!t) go("/console", "Bureau not found", "error");
+  if (str(fd, "confirm") !== "RESTORE") go(`/console/tenants/${id}#backups`, "Type RESTORE to confirm", "error");
   try {
     const safety = await restoreTenantBackup(t!, str(fd, "file"));
-    go(`/tenants/${id}#backups`, `Restored. The data from just before is kept as ${safety}`);
+    go(`/console/tenants/${id}#backups`, `Restored. The data from just before is kept as ${safety}`);
   } catch (e) {
     if (isRedirect(e)) throw e;
-    go(`/tenants/${id}#backups`, `Restore failed: ${errMsg(e)}`, "error");
+    go(`/console/tenants/${id}#backups`, `Restore failed: ${errMsg(e)}`, "error");
   }
 }
 
@@ -249,10 +249,10 @@ export async function fullBackupNow() {
   await requireConsoleAdmin();
   try {
     await takeFullBackup();
-    go("/backups", "Full backup created");
+    go("/console/backups", "Full backup created");
   } catch (e) {
     if (isRedirect(e)) throw e;
-    go("/backups", `Backup failed: ${errMsg(e)}`, "error");
+    go("/console/backups", `Backup failed: ${errMsg(e)}`, "error");
   }
 }
 
@@ -267,7 +267,7 @@ export async function savePlatformEmail(fd: FormData) {
   const current = await platform.platformSettings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
   const cfg = readEmailConfig(current.emailConfig);
   const user = str(fd, "user").toLowerCase();
-  if (user && !/^\S+@\S+\.\S+$/.test(user)) go("/settings", "Enter a valid email address", "error");
+  if (user && !/^\S+@\S+\.\S+$/.test(user)) go("/console/settings", "Enter a valid email address", "error");
   const password = str(fd, "password").replace(/\s+/g, "");
   const next = {
     enabled: fd.get("enabled") === "on",
@@ -278,17 +278,17 @@ export async function savePlatformEmail(fd: FormData) {
     secure: true,
     passwordSealed: password ? seal(password) : cfg.passwordSealed,
   };
-  if (next.enabled && (!next.user || !next.passwordSealed)) go("/settings", "Enter the Gmail address and App Password to turn email on", "error");
+  if (next.enabled && (!next.user || !next.passwordSealed)) go("/console/settings", "Enter the Gmail address and App Password to turn email on", "error");
   const summary = summaryOptionsSchema.parse({ enabled: fd.get("summaryEnabled") === "on", time: str(fd, "summaryTime"), extraRecipients: [] });
   await platform.platformSettings.update({ where: { id: 1 }, data: { emailConfig: next, summary } });
-  revalidatePath("/settings");
-  go("/settings", "Email settings saved");
+  revalidatePath("/console/settings");
+  go("/console/settings", "Email settings saved");
 }
 
 export async function sendPlatformTestEmail() {
   const admin = await requireConsoleAdmin();
   const r = await sendPlatformEmail({ to: admin.email, subject: "Test email from the bureau platform", text: await buildPlatformSummary() });
-  go("/settings", r.ok ? `Test email (with today's billing summary) sent to ${admin.email}` : `Not sent: ${r.error}`, r.ok ? "ok" : "error");
+  go("/console/settings", r.ok ? `Test email (with today's billing summary) sent to ${admin.email}` : `Not sent: ${r.error}`, r.ok ? "ok" : "error");
 }
 
 export async function changeConsolePassword(fd: FormData) {
@@ -296,34 +296,34 @@ export async function changeConsolePassword(fd: FormData) {
   const current = String(fd.get("current") ?? "");
   const next = String(fd.get("password") ?? "");
   const a = await platform.superAdmin.findUniqueOrThrow({ where: { id: me.id } });
-  if (!(await bcrypt.compare(current, a.passwordHash))) go("/settings", "The current password is wrong", "error");
-  if (next.length < 10) go("/settings", "Use at least 10 characters for the new password", "error");
+  if (!(await bcrypt.compare(current, a.passwordHash))) go("/console/settings", "The current password is wrong", "error");
+  if (next.length < 10) go("/console/settings", "Use at least 10 characters for the new password", "error");
   const updated = await platform.superAdmin.update({
     where: { id: me.id },
     data: { passwordHash: await bcrypt.hash(next, 10), tokenVersion: { increment: 1 } },
   });
   await setConsoleCookie(updated);
-  go("/settings", "Password changed. Other sessions were signed out.");
+  go("/console/settings", "Password changed. Other sessions were signed out.");
 }
 
 export async function addSuperAdmin(fd: FormData) {
   await requireConsoleAdmin();
   const email = str(fd, "email").toLowerCase();
   const password = String(fd.get("password") ?? "");
-  if (!/^\S+@\S+\.\S+$/.test(email)) go("/settings", "Enter an email address", "error");
-  if (password.length < 10) go("/settings", "Use at least 10 characters for the password", "error");
-  if (await platform.superAdmin.findUnique({ where: { email } })) go("/settings", "That email already has a login", "error");
+  if (!/^\S+@\S+\.\S+$/.test(email)) go("/console/settings", "Enter an email address", "error");
+  if (password.length < 10) go("/console/settings", "Use at least 10 characters for the password", "error");
+  if (await platform.superAdmin.findUnique({ where: { email } })) go("/console/settings", "That email already has a login", "error");
   await platform.superAdmin.create({ data: { name: str(fd, "name") || email, email, passwordHash: await bcrypt.hash(password, 10) } });
-  go("/settings", `Super admin ${email} added`);
+  go("/console/settings", `Super admin ${email} added`);
 }
 
 export async function setSuperAdminActive(fd: FormData) {
   const me = await requireConsoleAdmin();
   const id = str(fd, "adminId");
-  if (id === me.id) go("/settings", "You can't deactivate yourself", "error");
+  if (id === me.id) go("/console/settings", "You can't deactivate yourself", "error");
   const active = str(fd, "active") === "1";
   await platform.superAdmin.update({ where: { id }, data: { active, tokenVersion: { increment: 1 } } });
-  go("/settings", active ? "Login re-activated" : "Login deactivated");
+  go("/console/settings", active ? "Login re-activated" : "Login deactivated");
 }
 
 export async function saveWhatsAppAutoUpdate(fd: FormData) {
@@ -337,6 +337,6 @@ export async function saveWhatsAppAutoUpdate(fd: FormData) {
     // turning auto-update on again gives a previously failed version another chance
     ...(autoUpdate && !current.autoUpdate ? { skipVersion: null } : {}),
   });
-  revalidatePath("/updates");
-  go("/updates", autoUpdate ? "Automatic WhatsApp library updates on" : "Automatic updates off");
+  revalidatePath("/console/updates");
+  go("/console/updates", autoUpdate ? "Automatic WhatsApp library updates on" : "Automatic updates off");
 }

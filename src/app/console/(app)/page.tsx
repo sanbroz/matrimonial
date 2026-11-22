@@ -33,7 +33,7 @@ export default async function BureausPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader title="Bureaus" actions={<ButtonLink href="/tenants/new" variant="primary">Add bureau</ButtonLink>} />
+      <PageHeader title="Bureaus" actions={<ButtonLink href="/console/tenants/new" variant="primary">Add bureau</ButtonLink>} />
       <Flash {...sp} />
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {stats.map((s) => (
@@ -65,7 +65,7 @@ export default async function BureausPage({ searchParams }: { searchParams: Prom
                 return (
                   <tr key={t.id} className="hover:bg-zinc-50">
                     <td className="px-3 py-2">
-                      <Link href={`/tenants/${t.id}`} className="font-medium text-zinc-900 hover:text-brand-700">{t.name}</Link>
+                      <Link href={`/console/tenants/${t.id}`} className="font-medium text-zinc-900 hover:text-brand-700">{t.name}</Link>
                       <span className="block text-xs text-zinc-500">{t.contactName ?? ""}{t.contactPhone ? ` · ${t.contactPhone}` : ""}</span>
                     </td>
                     <td className="hidden px-3 py-2 md:table-cell">

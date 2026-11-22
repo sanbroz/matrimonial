@@ -66,7 +66,7 @@ export default async function BackupsPage({ searchParams }: { searchParams: Prom
                 const b = latest.get(t.id);
                 return (
                   <li key={t.id} className="flex flex-wrap items-center gap-x-3 py-2">
-                    <Link href={`/tenants/${t.id}#backups`} className="font-medium hover:text-brand-700">{t.name}</Link>
+                    <Link href={`/console/tenants/${t.id}#backups`} className="font-medium hover:text-brand-700">{t.name}</Link>
                     <span className={stale(b) ? "text-xs text-red-600" : "text-xs text-zinc-500"}>
                       {b ? `last backup ${fmt(b.created)} (${formatSize(b.size)})` : "no backup yet"}
                     </span>

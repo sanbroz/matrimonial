@@ -63,6 +63,6 @@ export const getConsoleAdmin = cache(async (): Promise<ConsoleAdmin | null> => {
 
 export async function requireConsoleAdmin(): Promise<ConsoleAdmin> {
   const a = await getConsoleAdmin();
-  if (!a) redirect("/login");
+  if (!a) redirect("/console/login");
   return a;
 }

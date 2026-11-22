@@ -131,7 +131,7 @@ export function UpdateNotice({
 
       {isOwner && status?.whatsapp?.latest && (
         <a
-          href="/updates"
+          href="/console/updates"
           className="flex w-full items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1.5 text-left text-xs font-medium text-emerald-900 ring-1 ring-emerald-200 hover:bg-emerald-100"
           title={`WhatsApp library ${status.whatsapp.installed} → ${status.whatsapp.latest}`}
         >
