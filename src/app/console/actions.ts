@@ -25,8 +25,11 @@ import { savePlatformWhatsAppOptions, readPlatformWhatsAppOptions } from "@/lib/
 
 const DUMMY_HASH = "$2b$10$jPc0LyIrKDV8zfasxi6jgO7Sfa0R5yqB9/8o5sqelufJ.mNcJoov.";
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
-const go = (path: string, msg: string, key: "ok" | "error" = "ok"): never =>
-  redirect(`${path}${path.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(msg)}`);
+/** Redirect with a flash message; the message goes before any #anchor so the page can read it. */
+const go = (target: string, msg: string, key: "ok" | "error" = "ok"): never => {
+  const [path, hash] = target.split("#");
+  redirect(`${path}${path.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(msg)}${hash ? `#${hash}` : ""}`);
+};
 const dateOrNull = (v: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00Z`) : null);
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 

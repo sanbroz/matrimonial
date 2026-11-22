@@ -4,8 +4,9 @@
 //      GET  /full                       → full backups [{ file, size, created }]
 //      POST /full                       → take a full backup now
 //      GET  /t/<slug>                   → that bureau's backups
-//      POST /t/<slug>/backup  {schema, label?}        → back up now → { file }
-//      POST /t/<slug>/restore {schema, file}          → safety backup, then restore → { safety }
+//      POST /t/<slug>/backup  {label?}                → back up now → { file }
+//      POST /t/<slug>/restore {file}                  → safety backup, then restore → { safety }
+//      (each bureau's schema is looked up in the platform database, never taken from the request)
 //      POST /t/<slug>/export  {file, password}        → password-protected .7z download (binary)
 // The backup passphrase stays in this container; the app never sees it.
 import { createServer } from "node:http";
@@ -19,7 +20,6 @@ import path from "node:path";
 const TOKEN = process.env.BACKUP_TOKEN || "";
 const PORT = 8789;
 const SLUG_RE = /^[a-z][a-z0-9-]{1,29}$/;
-const SCHEMA_RE = /^t_[a-z0-9_]{1,40}$/;
 const FILE_RE = /^[a-z0-9_-]+\.tar\.enc$/;
 const TIME = process.env.BACKUP_TIME || "02:30";
 
@@ -69,6 +69,13 @@ async function tenants() {
     const [slug, schema] = l.split(" ");
     return { slug, schema };
   });
+}
+
+/** A bureau's schema, from the platform database (never trusted from the request). */
+async function schemaFor(slug) {
+  const t = (await tenants()).find((x) => x.slug === slug);
+  if (!t) throw Object.assign(new Error("Unknown bureau"), { code: 404 });
+  return t.schema;
 }
 
 const tenantBackup = (slug, schema, label = "") => serial(() => sh("/usr/local/bin/tenant-backup.sh", [slug, schema, label])).then((o) => o.split("\n").pop());
@@ -156,14 +163,15 @@ createServer(async (req, res) => {
     const body = await readJson(req);
 
     if (action === "backup") {
-      if (!SCHEMA_RE.test(body.schema ?? "")) throw bad("bad schema");
-      return reply(200, { file: await tenantBackup(slug, body.schema, /^[a-z0-9-]{1,20}$/.test(body.label ?? "") ? body.label : "") });
+      const schema = await schemaFor(slug);
+      return reply(200, { file: await tenantBackup(slug, schema, /^[a-z0-9-]{1,20}$/.test(body.label ?? "") ? body.label : "") });
     }
     if (action === "restore") {
-      if (!SCHEMA_RE.test(body.schema ?? "") || !FILE_RE.test(body.file ?? "")) throw bad("bad request");
+      if (!FILE_RE.test(body.file ?? "") || !body.file.startsWith(`${slug}_`)) throw bad("bad file name");
+      const schema = await schemaFor(slug);
       // Safety copy of the current data first, so a restore can itself be undone
-      const safety = await tenantBackup(slug, body.schema, "before-restore");
-      await serial(() => sh("/usr/local/bin/tenant-restore.sh", [slug, body.schema, body.file]));
+      const safety = await tenantBackup(slug, schema, "before-restore");
+      await serial(() => sh("/usr/local/bin/tenant-restore.sh", [slug, schema, body.file]));
       return reply(200, { ok: true, safety });
     }
     if (action === "export") {
