@@ -21,11 +21,9 @@ WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
 PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h db -U matri -d matrimonial -n "$SCHEMA" -Fc -f "$WORK/db.dump"
-if [ -d "/data/uploads/$SLUG" ]; then
-  tar -C /data/uploads -czf "$WORK/uploads.tgz" "$SLUG"
-else
-  tar -czf "$WORK/uploads.tgz" -T /dev/null
-fi
+# No files yet: archive an empty folder (busybox tar refuses an empty archive)
+[ -d "/data/uploads/$SLUG" ] && SRC=/data/uploads || { SRC="$WORK/empty"; mkdir -p "$SRC/$SLUG"; }
+tar -C "$SRC" -czf "$WORK/uploads.tgz" "$SLUG"
 printf 'slug=%s\nschema=%s\ncreated=%s\n' "$SLUG" "$SCHEMA" "$(date '+%F %T')" > "$WORK/meta.txt"
 
 mkdir -p "$DIR"

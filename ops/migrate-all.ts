@@ -39,6 +39,7 @@ async function main() {
       } finally {
         await db.$disconnect();
       }
+      await ensureUploadFolder(t.slug);
       console.log(`${t.slug} (${t.schema}): ${done.length ? `applied ${done.join(", ")}` : "up to date"}`);
     }
     await ensureSuperAdmin(platform);
@@ -94,6 +95,13 @@ async function moveLegacyUploads(platform: PlatformClient) {
   if (process.getuid?.() === 0) await chown(target, 1000, 1000);
   for (const e of legacy) await rename(path.join(UPLOADS, e), path.join(target, e));
   console.log(`Moved uploaded files (${legacy.join(", ")}) into ${target}`);
+}
+
+/** Each bureau's upload folder, owned by the app's user. */
+async function ensureUploadFolder(slug: string) {
+  const dir = path.join(UPLOADS, slug);
+  await mkdir(dir, { recursive: true });
+  if (process.getuid?.() === 0) await chown(dir, 1000, 1000);
 }
 
 async function ensureSuperAdmin(platform: PlatformClient) {

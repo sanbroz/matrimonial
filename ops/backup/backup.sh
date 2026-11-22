@@ -14,11 +14,9 @@ trap 'rm -rf "$WORK"' EXIT
 
 echo "$(date '+%F %T') backup starting"
 PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h db -U matri -d matrimonial -Fc -f "$WORK/db.dump"
-if [ -d /data/uploads ]; then
-  tar -C /data -czf "$WORK/uploads.tgz" uploads
-else
-  tar -czf "$WORK/uploads.tgz" -T /dev/null
-fi
+# No files yet: archive an empty folder (busybox tar refuses an empty archive)
+[ -d /data/uploads ] && SRC=/data || { SRC="$WORK/empty"; mkdir -p "$SRC/uploads"; }
+tar -C "$SRC" -czf "$WORK/uploads.tgz" uploads
 date '+%F %T' > "$WORK/created.txt"
 
 mkdir -p /backups
