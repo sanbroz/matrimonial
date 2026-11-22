@@ -147,6 +147,18 @@ off-site backup in, and run the restore.
 
 ## 8. Updating to a new version
 
+**Current setup (sanbroz server, `~/projects/matrimonial`, behind the Cloudflare Tunnel):** the code is pushed
+straight from the development PC over SSH; the server doesn't need GitHub access.
+
+```bash
+# on the development PC (remote "prod" uses ~/.ssh/matrimonial_server_ed25519)
+git push origin main && git push prod main
+# on the server
+cd ~/projects/matrimonial && ./ops/backup-now.sh && ./ops/deploy.sh
+```
+
+Otherwise (server cloned from GitHub):
+
 ```bash
 cd /opt/bureau-crm
 ./ops/backup-now.sh        # safety copy first
