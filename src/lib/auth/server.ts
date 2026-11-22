@@ -14,9 +14,9 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (!session) return null;
   const user = await prisma.user.findUnique({
     where: { id: session.uid },
-    select: { id: true, name: true, email: true, role: true, active: true },
+    select: { id: true, name: true, email: true, role: true, active: true, tokenVersion: true },
   });
-  if (!user || !user.active) return null;
+  if (!user || !user.active || user.tokenVersion !== session.tv) return null;
   return { id: user.id, name: user.name, email: user.email, role: user.role };
 });
 

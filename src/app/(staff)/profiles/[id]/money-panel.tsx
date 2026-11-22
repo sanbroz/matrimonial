@@ -6,6 +6,12 @@ import { Badge, Card, Field, cx, inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { addCharge, editDueAmount, payDue, waiveDue } from "@/app/(staff)/payments/actions";
 import { MembershipForm } from "./membership-form";
+import { prisma } from "@/lib/db";
+import { SendMessageButton } from "@/components/send-message";
+import { sendReminder } from "@/lib/actions/messaging";
+import { addressee, messageContext } from "@/lib/services/message-vars";
+import { whatsappConfigured } from "@/lib/services/whatsapp";
+import { renderTemplate } from "@/lib/templates";
 
 const modeSelect = (
   <select name="mode" className={inputClass} defaultValue="CASH">
@@ -14,7 +20,13 @@ const modeSelect = (
 );
 
 export async function MoneyPanel({ profileId, isOwner }: { profileId: string; isOwner: boolean }) {
-  const { memberships, dues, payments, plans, registrationFee, introsUsed } = await loadProfileMoney(profileId);
+  const [{ memberships, dues, payments, plans, registrationFee, introsUsed }, person, ctx] = await Promise.all([
+    loadProfileMoney(profileId),
+    prisma.profile.findUnique({ where: { id: profileId }, select: { code: true, fullName: true, contactName: true, phone: true } }),
+    messageContext(),
+  ]);
+  const baseVars = { ...ctx.base, name: person ? addressee(person) : "", code: person?.code ?? "" };
+  const waReason = whatsappConfigured ? (person?.phone ? null : "No phone number on this profile") : "WhatsApp is available on the production server";
   const current = memberships[0];
   const left = current ? daysLeft(current.endDate) : null;
   const openDues = dues.filter((d) => d.status === "OPEN");
@@ -41,6 +53,20 @@ export async function MoneyPanel({ profileId, isOwner }: { profileId: string; is
                 <span className="font-medium">{current.plan.name}</span>
                 <span className="text-zinc-600">{formatDateOnly(current.startDate)} to {formatDateOnly(current.endDate)}</span>
                 {left! < 0 ? <Badge tone="red">Expired {-left!} days ago</Badge> : left! <= 14 ? <Badge tone="amber">{left} days left</Badge> : <Badge tone="green">{left} days left</Badge>}
+                {left! <= 14 && (
+                  <SendMessageButton
+                    channel="whatsapp"
+                    label="Renewal reminder"
+                    title="Membership renewal reminder"
+                    action={sendReminder}
+                    defaultTo={person?.phone}
+                    defaultText={renderTemplate(ctx.templates.renewal, { ...baseVars, plan: current.plan.name, end_date: formatDateOnly(current.endDate) })}
+                    fields={{ kind: "renewal", profileId }}
+                    variant="ghost"
+                    className="text-brand-700"
+                    disabledReason={waReason}
+                  />
+                )}
                 <span className="text-zinc-600">
                   Introductions: {introsUsed}
                   {current.plan.introLimit != null && ` of ${current.plan.introLimit}`}
@@ -84,7 +110,19 @@ export async function MoneyPanel({ profileId, isOwner }: { profileId: string; is
                         {d.status === "WAIVED" && <Badge>Waived{d.notes && d.notes !== "Waived" ? `: ${d.notes}` : ""}</Badge>}
                       </div>
                       {d.status === "OPEN" && (
-                        <div className="mt-2 flex flex-wrap gap-3 text-sm">
+                        <div className="mt-2 flex flex-wrap items-start gap-3 text-sm">
+                          <SendMessageButton
+                            channel="whatsapp"
+                            label="Reminder"
+                            title={`Payment reminder: ${d.label}`}
+                            action={sendReminder}
+                            defaultTo={person?.phone}
+                            defaultText={renderTemplate(ctx.templates.paymentDue, { ...baseVars, amount: rupees(dueBalance(d, d.payments)), for: d.label })}
+                            fields={{ kind: "payment_due", profileId }}
+                            variant="ghost"
+                            className="-my-1.5 text-brand-700"
+                            disabledReason={waReason}
+                          />
                           <details>
                             <summary className="cursor-pointer font-medium text-brand-700">Receive payment</summary>
                             <form action={payDue} className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">

@@ -10,6 +10,7 @@ import { IMAGE_TYPES, UploadError, deleteUpload, saveUpload } from "@/lib/storag
 import { BIODATA_SECTIONS, biodataOptionsSchema } from "@/lib/biodata-options";
 import { OPTION_CATEGORIES } from "@/lib/options-defaults";
 import { matchingOptionsSchema } from "@/lib/matching";
+import { setSessionCookie } from "@/lib/auth/cookie";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 const optStr = (fd: FormData, k: string) => str(fd, k) || null;
@@ -159,8 +160,17 @@ export async function saveStaff(fd: FormData) {
     role: role as "OWNER" | "STAFF",
     ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}),
   };
-  if (id) await prisma.user.update({ where: { id }, data });
-  else await prisma.user.create({ data: { ...data, passwordHash: data.passwordHash! } });
+  if (id) {
+    // New password: end that person's other sessions
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { ...data, ...(password ? { tokenVersion: { increment: 1 } } : {}) },
+    });
+    // Keep the owner signed in on this device after changing their own password
+    if (password && id === me.id) await setSessionCookie(updated);
+  } else {
+    await prisma.user.create({ data: { ...data, passwordHash: data.passwordHash! } });
+  }
   revalidatePath("/settings/staff");
   back("/settings/staff", id ? "Account updated" : "Account created");
 }

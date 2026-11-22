@@ -12,6 +12,7 @@ import { deleteProfileAction, uploadKundli } from "../actions";
 import { PhotoGallery } from "./photo-gallery";
 import { ProposalsPanel } from "./proposals-panel";
 import { MoneyPanel } from "./money-panel";
+import { MessagesLog } from "./messages-log";
 
 export const metadata = { title: "Profile" };
 
@@ -235,6 +236,10 @@ export default async function ProfilePage({
       <div className="mt-5">
         {(sp.ok || sp.error) && <div className="mb-2">{sp.error ? <Alert>{sp.error}</Alert> : <Alert tone="green">{sp.ok}</Alert>}</div>}
         <MoneyPanel profileId={p.id} isOwner={isOwner} />
+      </div>
+
+      <div className="mt-5">
+        <MessagesLog profileId={p.id} />
       </div>
 
       <div className="mt-5">

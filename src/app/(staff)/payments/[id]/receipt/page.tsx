@@ -9,6 +9,12 @@ import { Alert, ButtonLink, Card, Field, inputClass } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { voidPayment } from "../../actions";
 import { PrintButton } from "./print-button";
+import { SendMessageButton } from "@/components/send-message";
+import { sendReceipt } from "@/lib/actions/messaging";
+import { addressee, messageContext } from "@/lib/services/message-vars";
+import { isEmailConfigured } from "@/lib/services/email";
+import { whatsappConfigured } from "@/lib/services/whatsapp";
+import { renderTemplate } from "@/lib/templates";
 
 export const metadata = { title: "Receipt" };
 
@@ -29,6 +35,19 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
   ]);
   if (!p) notFound();
   const balance = p.due ? dueBalance(p.due, p.due.payments) : 0;
+  const [family, ctx, emailReady] = await Promise.all([
+    p.profileId ? prisma.profile.findUnique({ where: { id: p.profileId }, select: { fullName: true, contactName: true, phone: true, email: true } }) : null,
+    messageContext(),
+    isEmailConfigured(),
+  ]);
+  const vars = {
+    ...ctx.base,
+    name: family ? addressee(family) : p.payerName,
+    code: p.profileCode,
+    receipt_no: p.receiptNo,
+    amount: rupees(p.amount),
+    for: p.description,
+  };
   const date = p.paidAt.toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
 
   return (
@@ -37,13 +56,40 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
         <h1 className="text-xl font-semibold">Receipt <span className="font-mono text-brand-700">{p.receiptNo}</span></h1>
         <div className="flex gap-2">
           {p.profileId && <ButtonLink href={`/profiles/${p.profileId}#money`}>Back to profile</ButtonLink>}
+          {!p.voidedAt && (
+            <>
+              <SendMessageButton
+                channel="whatsapp"
+                label="WhatsApp"
+                title={`Send receipt ${p.receiptNo} on WhatsApp`}
+                action={sendReceipt}
+                defaultTo={family?.phone}
+                defaultText={renderTemplate(ctx.templates.receiptWhatsApp, vars)}
+                fields={{ paymentId: p.id, channel: "whatsapp" }}
+                attach={{ elementId: "receipt-sheet", as: "jpg", filename: `receipt-${p.receiptNo}.jpg` }}
+                disabledReason={whatsappConfigured ? null : "WhatsApp is available on the production server"}
+              />
+              <SendMessageButton
+                channel="email"
+                label="Email"
+                title={`Email receipt ${p.receiptNo}`}
+                action={sendReceipt}
+                defaultTo={family?.email}
+                defaultSubject={`Receipt ${p.receiptNo} from ${s.bureauName}`}
+                defaultText={renderTemplate(ctx.templates.receiptEmailBody, vars)}
+                fields={{ paymentId: p.id, channel: "email" }}
+                attach={{ elementId: "receipt-sheet", as: "jpg", filename: `receipt-${p.receiptNo}.jpg` }}
+                disabledReason={emailReady ? null : "Set up email first (Settings → Email)"}
+              />
+            </>
+          )}
           <PrintButton />
         </div>
       </div>
       {ok && <div className="mb-4 print:hidden"><Alert tone="green">{ok}</Alert></div>}
 
       <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-100 p-4 print:border-0 print:bg-white print:p-0">
-        <div className="print-sheet relative mx-auto bg-white p-10 text-[14px] text-zinc-800 shadow-lg print:shadow-none" style={{ width: 794 }}>
+        <div id="receipt-sheet" className="print-sheet relative mx-auto bg-white p-10 text-[14px] text-zinc-800 shadow-lg print:shadow-none" style={{ width: 794 }}>
           {p.voidedAt && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <span className="-rotate-12 rounded-lg border-8 border-red-500/60 px-8 text-8xl font-black tracking-widest text-red-500/50">VOID</span>

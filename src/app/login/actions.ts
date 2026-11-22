@@ -1,28 +1,13 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { SESSION_COOKIE, SESSION_MAX_AGE, signSession } from "@/lib/auth/session";
+import { SESSION_COOKIE } from "@/lib/auth/session";
+import { setSessionCookie } from "@/lib/auth/cookie";
 import { loginLimits } from "@/lib/auth/rate-limit";
-
-/**
- * Client IP for the login limiter.
- * - Behind Cloudflare Tunnel (CLIENT_IP_HEADER=cf-connecting-ip): Cloudflare's header holds the visitor's IP.
- *   Safe because the app's port is only reachable through the tunnel.
- * - Otherwise the LAST X-Forwarded-For entry, which our own proxy (Caddy) added, so it can't be spoofed.
- */
-async function clientIp() {
-  const h = await headers();
-  const trusted = process.env.CLIENT_IP_HEADER?.toLowerCase();
-  if (trusted) {
-    const v = h.get(trusted);
-    if (v) return v.split(",")[0].trim();
-  }
-  const xff = h.get("x-forwarded-for");
-  return xff ? xff.split(",").pop()!.trim() : "local";
-}
+import { clientIp } from "@/lib/auth/client-ip";
 
 // Compared against when the email doesn't exist, so response time doesn't reveal valid emails
 const DUMMY_HASH = "$2b$10$jPc0LyIrKDV8zfasxi6jgO7Sfa0R5yqB9/8o5sqelufJ.mNcJoov.";
@@ -45,14 +30,7 @@ export async function loginAction(_prev: { error?: string } | undefined, formDat
   }
   loginLimits.email.reset(email);
 
-  const token = await signSession({ uid: user.id, role: user.role });
-  (await cookies()).set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: SESSION_MAX_AGE,
-  });
+  await setSessionCookie(user);
   redirect("/");
 }
 

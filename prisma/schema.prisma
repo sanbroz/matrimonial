@@ -26,6 +26,8 @@ model User {
   passwordHash String
   role         Role     @default(STAFF)
   active       Boolean  @default(true)
+  /// Raised on password change/reset: older login cookies stop working.
+  tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -40,6 +42,52 @@ model User {
   savedSearches   SavedSearch[]
   proposalEvents  ProposalEvent[]
   paymentsVoided  Payment[]       @relation("PaymentVoidedBy")
+  resetTokens     PasswordResetToken[]
+  messagesSent    OutboundMessage[]
+}
+
+/// "Forgot password" links. Only a hash of the token is stored.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+enum MessageChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum MessageStatus {
+  SENT
+  FAILED
+}
+
+/// Log of every email / WhatsApp message the app sent.
+model OutboundMessage {
+  id          String         @id @default(cuid())
+  channel     MessageChannel
+  /// biodata, receipt, payment_due, renewal, meeting, summary, password_reset, test
+  kind        String
+  to          String
+  subject     String?
+  body        String
+  hasAttachment Boolean      @default(false)
+  status      MessageStatus
+  error       String?
+  externalId  String?
+  profileId   String?
+  profile     Profile?       @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User?          @relation(fields: [createdById], references: [id])
+  createdAt   DateTime       @default(now())
+
+  @@index([profileId, createdAt])
+  @@index([createdAt])
 }
 
 /// Single row (id = 1): everything the owner can customise.
@@ -62,6 +110,14 @@ model Settings {
   biodataOptions    Json?
   /// Rules for suggested matches (gotra rule, two-way check…).
   matchingOptions   Json?
+  /// Outgoing email (Gmail / SMTP). The password inside is encrypted.
+  emailConfig       Json?
+  /// Daily summary email: on/off, time, recipients.
+  summaryOptions    Json?
+  /// "YYYY-MM-DD" (IST) of the last daily summary sent, so restarts don't send twice.
+  lastSummaryDate   String?
+  /// Editable WhatsApp / email message templates.
+  messageTemplates  Json?
   updatedAt         DateTime @updatedAt
 }
 
@@ -273,6 +329,7 @@ model Profile {
   memberships    Membership[]
   payments       Payment[]
   dues           Due[]
+  messages       OutboundMessage[]
 
   @@index([gender, status])
   @@index([religion, caste])

@@ -11,6 +11,8 @@ export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 export interface SessionPayload {
   uid: string;
   role: "OWNER" | "STAFF";
+  /** User.tokenVersion at login; a password change/reset raises it and ends older sessions. */
+  tv: number;
 }
 
 function key() {
@@ -32,7 +34,11 @@ export async function verifySession(token: string | undefined): Promise<SessionP
   try {
     const { payload } = await jwtVerify(token, key(), { algorithms: ["HS256"] });
     if (typeof payload.uid !== "string") return null;
-    return { uid: payload.uid, role: payload.role === "OWNER" ? "OWNER" : "STAFF" };
+    return {
+      uid: payload.uid,
+      role: payload.role === "OWNER" ? "OWNER" : "STAFF",
+      tv: typeof payload.tv === "number" ? payload.tv : 0,
+    };
   } catch {
     return null;
   }

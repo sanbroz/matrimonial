@@ -5,6 +5,12 @@ import { KIND_LABELS, MODE_LABELS, daysLeft, rupees } from "@/lib/money";
 import { formatDateOnly, formatDateTime } from "@/lib/format";
 import { Alert, Badge, ButtonLink, Card, EmptyState, PageHeader, buttonClass, cx, inputClass } from "@/components/ui";
 
+import { SendMessageButton } from "@/components/send-message";
+import { sendReminder } from "@/lib/actions/messaging";
+import { addressee, messageContext } from "@/lib/services/message-vars";
+import { whatsappConfigured } from "@/lib/services/whatsapp";
+import { renderTemplate } from "@/lib/templates";
+
 export const metadata = { title: "Payments" };
 
 export default async function PaymentsPage({ searchParams }: { searchParams: Promise<{ tab?: string; month?: string; ok?: string }> }) {
@@ -37,7 +43,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
 }
 
 async function DuesTab() {
-  const [dues, renewals] = await Promise.all([openDues(), renewalsDue()]);
+  const [dues, renewals, ctx] = await Promise.all([openDues(), renewalsDue(), messageContext()]);
   const total = dues.reduce((s, d) => s + d.balance, 0);
   const age = (d: Date) => Math.floor((Date.now() - d.getTime()) / 86400000);
 
@@ -67,7 +73,23 @@ async function DuesTab() {
                       {age(d.createdAt) > 30 && <span className="ml-1"><Badge tone="red">{age(d.createdAt)} days</Badge></span>}
                     </td>
                     <td className="py-2 pr-3 text-right font-medium">{rupees(d.balance)}</td>
-                    <td className="py-2 text-right"><ButtonLink href={`/profiles/${d.profile.id}#money`}>Receive</ButtonLink></td>
+                    <td className="py-2 text-right">
+                      <div className="flex justify-end gap-1">
+                        <SendMessageButton
+                          channel="whatsapp"
+                          label="Remind"
+                          title={`Payment reminder: ${d.profile.code}`}
+                          action={sendReminder}
+                          defaultTo={d.profile.phone}
+                          defaultText={renderTemplate(ctx.templates.paymentDue, {
+                            ...ctx.base, name: addressee(d.profile), code: d.profile.code, amount: rupees(d.balance), for: d.label,
+                          })}
+                          fields={{ kind: "payment_due", profileId: d.profile.id }}
+                          disabledReason={!whatsappConfigured ? "WhatsApp is available on the production server" : d.profile.phone ? null : "No phone number"}
+                        />
+                        <ButtonLink href={`/profiles/${d.profile.id}#money`}>Receive</ButtonLink>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -90,6 +112,18 @@ async function DuesTab() {
                     <span className="block text-xs text-zinc-500">{m.plan.name} · ends {formatDateOnly(m.endDate)}{m.profile.phone && ` · ${m.profile.phone}`}</span>
                   </Link>
                   {left < 0 ? <Badge tone="red">Expired {-left} days ago</Badge> : <Badge tone="amber">{left === 0 ? "Ends today" : `${left} days left`}</Badge>}
+                  <SendMessageButton
+                    channel="whatsapp"
+                    label="Remind"
+                    title={`Renewal reminder: ${m.profile.code}`}
+                    action={sendReminder}
+                    defaultTo={m.profile.phone}
+                    defaultText={renderTemplate(ctx.templates.renewal, {
+                      ...ctx.base, name: addressee(m.profile), code: m.profile.code, plan: m.plan.name, end_date: formatDateOnly(m.endDate),
+                    })}
+                    fields={{ kind: "renewal", profileId: m.profile.id }}
+                    disabledReason={!whatsappConfigured ? "WhatsApp is available on the production server" : m.profile.phone ? null : "No phone number"}
+                  />
                 </li>
               );
             })}

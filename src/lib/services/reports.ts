@@ -9,7 +9,7 @@ export async function openDues() {
     orderBy: { createdAt: "asc" },
     include: {
       payments: { select: { amount: true, voidedAt: true } },
-      profile: { select: { id: true, code: true, fullName: true, phone: true, status: true } },
+      profile: { select: { id: true, code: true, fullName: true, contactName: true, phone: true, status: true } },
     },
   });
   return dues.map((d) => ({ ...d, balance: dueBalance(d, d.payments) })).filter((d) => d.balance > 0);
@@ -28,7 +28,7 @@ export async function renewalsDue(aheadDays = 14, behindDays = 30) {
     orderBy: { endDate: "asc" },
     include: {
       plan: { select: { name: true } },
-      profile: { select: { id: true, code: true, fullName: true, phone: true } },
+      profile: { select: { id: true, code: true, fullName: true, contactName: true, phone: true } },
     },
   });
   if (!candidates.length) return [];

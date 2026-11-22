@@ -11,6 +11,9 @@ const TABS = [
   { href: "/settings/plans", label: "Membership plans" },
   { href: "/settings/staff", label: "Staff" },
   { href: "/settings/lists", label: "Dropdown lists" },
+  { href: "/settings/email", label: "Email" },
+  { href: "/settings/whatsapp", label: "WhatsApp" },
+  { href: "/settings/messages", label: "Message templates" },
 ];
 
 export function SettingsTabs() {

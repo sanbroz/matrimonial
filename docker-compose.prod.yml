@@ -33,6 +33,7 @@ services:
     environment:
       DATABASE_URL: postgresql://matri:${POSTGRES_PASSWORD}@db:5432/matrimonial?schema=public
       UPDATER_URL: http://updater:8787
+      WHATSAPP_URL: http://whatsapp:8788
     volumes:
       - uploads:/data/uploads
     depends_on:
@@ -93,8 +94,20 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - .:/repo
 
+  # WhatsApp sender (Baileys). Linked to the bureau number by QR code in Settings → WhatsApp.
+  # Not published on any port; needs WHATSAPP_TOKEN (created by ops/deploy.sh).
+  whatsapp:
+    build: ./ops/whatsapp
+    image: bureau-crm-whatsapp
+    restart: unless-stopped
+    environment:
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
+    volumes:
+      - whatsapp_auth:/data
+
 volumes:
   pgdata:
+  whatsapp_auth:
   uploads:
   backups:
   caddy_data:

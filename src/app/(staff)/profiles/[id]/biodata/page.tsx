@@ -12,6 +12,12 @@ import { SubmitButton } from "@/components/submit-button";
 import { BiodataSheet } from "./biodata-sheet";
 import { ExportButtons } from "./export-buttons";
 import { shareByCode, shareMatch } from "../matches/actions";
+import { SendMessageButton } from "@/components/send-message";
+import { sendBiodata } from "@/lib/actions/messaging";
+import { addressee, messageContext } from "@/lib/services/message-vars";
+import { isEmailConfigured } from "@/lib/services/email";
+import { whatsappConfigured } from "@/lib/services/whatsapp";
+import { renderTemplate } from "@/lib/templates";
 
 export const metadata = { title: "Biodata" };
 
@@ -43,8 +49,14 @@ export default async function BiodataPage({
 
   // Opened from a client's suggestions: offer to record the share for that family
   const client = sp.for
-    ? await prisma.profile.findUnique({ where: { id: sp.for }, select: { id: true, code: true, fullName: true } })
+    ? await prisma.profile.findUnique({
+        where: { id: sp.for },
+        select: { id: true, code: true, fullName: true, contactName: true, phone: true, email: true },
+      })
     : null;
+  const [ctx, emailReady] = await Promise.all([messageContext(), isEmailConfigured()]);
+  const vars = { ...ctx.base, code: profile.code, name: client ? addressee(client) : "" };
+  const sendFields = { profileId: profile.id, ...(client ? { forClientId: client.id } : {}) };
   const alreadyShared = client
     ? await prisma.proposal.findUnique({ where: { fromProfileId_toProfileId: { fromProfileId: client.id, toProfileId: profile.id } } })
     : null;
@@ -91,6 +103,32 @@ export default async function BiodataPage({
               ))}
             </div>
             <ExportButtons code={profile.code} lang={lang} />
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
+            <span className="text-sm text-zinc-600">Send{client ? ` to ${client.code}'s family` : ""}:</span>
+            <SendMessageButton
+              channel="whatsapp"
+              label="WhatsApp"
+              title={`Send biodata ${profile.code} on WhatsApp`}
+              action={sendBiodata}
+              defaultTo={client?.phone}
+              defaultText={renderTemplate(ctx.templates.biodataWhatsApp, vars)}
+              fields={{ ...sendFields, channel: "whatsapp" }}
+              attach={{ elementId: "biodata-sheet", as: "jpg", filename: `${profile.code}-biodata${lang === "pa" ? "-punjabi" : ""}.jpg` }}
+              disabledReason={whatsappConfigured ? null : "WhatsApp is available on the production server"}
+            />
+            <SendMessageButton
+              channel="email"
+              label="Email"
+              title={`Email biodata ${profile.code}`}
+              action={sendBiodata}
+              defaultTo={client?.email}
+              defaultSubject={renderTemplate(ctx.templates.biodataEmailSubject, vars)}
+              defaultText={renderTemplate(ctx.templates.biodataEmailBody, vars)}
+              fields={{ ...sendFields, channel: "email" }}
+              attach={{ elementId: "biodata-sheet", as: "pdf", filename: `${profile.code}-biodata${lang === "pa" ? "-punjabi" : ""}.pdf` }}
+              disabledReason={emailReady ? null : "Set up email first (Settings → Email)"}
+            />
           </div>
           <div className="mt-3 border-t border-zinc-100 pt-3">
             {client ? (

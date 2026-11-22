@@ -1,0 +1,15 @@
+{
+  "name": "bureau-crm-whatsapp",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Internal WhatsApp sender for Bureau CRM (Baileys). Not exposed to the internet.",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "baileys": "7.0.0-rc14",
+    "pino": "^9.0.0",
+    "qrcode": "^1.5.4"
+  }
+}
