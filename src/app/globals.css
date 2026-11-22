@@ -25,6 +25,14 @@ textarea {
   font: inherit;
 }
 
+/* Horizontally scrollable rows (tabs, phone nav) without a visible scrollbar */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Printing (biodata, receipts): only the .print-sheet element is printed, edge to edge */
 @media print {
   @page {

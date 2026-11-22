@@ -19,7 +19,7 @@ export function NavLinks({ isOwner }: { isOwner: boolean }) {
   const path = usePathname();
   const links = isOwner ? [...LINKS, ...OWNER_LINKS] : LINKS;
   return (
-    <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:px-3">
+    <nav className="no-scrollbar flex gap-1 overflow-x-auto overflow-y-hidden px-2 pb-2 md:flex-col md:overflow-visible md:px-3">
       {links.map((l) => {
         const active = l.href === "/" ? path === "/" : path.startsWith(l.href);
         return (

@@ -29,6 +29,11 @@ COPY --from=tools --chown=node:node /app/.next/standalone ./
 COPY --from=tools --chown=node:node /app/.next/static ./.next/static
 COPY --from=tools --chown=node:node /app/public ./public
 RUN mkdir -p /data/uploads && chown -R node:node /data
+# Which code this image was built from (shown in the app; used to detect updates). Set by ops/deploy.sh.
+ARG APP_COMMIT=unknown
+ARG APP_BUILT_AT=
+ENV APP_COMMIT=$APP_COMMIT \
+    APP_BUILT_AT=$APP_BUILT_AT
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

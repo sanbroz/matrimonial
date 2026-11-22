@@ -45,7 +45,9 @@ export default async function ListsPage({ searchParams }: { searchParams: Promis
               &quot;at least&quot; preferences (e.g. minimum education). &quot;Other&quot; is never compared.
             </p>
           )}
-          <form action={saveOptionList} className="space-y-3">
+          {/* key: a fresh form per category, so the text box shows that category's values
+              (otherwise React keeps the previous category's textarea when switching) */}
+          <form key={cat} action={saveOptionList} className="space-y-3">
             <input type="hidden" name="category" value={cat} />
             <textarea name="values" rows={16} defaultValue={items.map((i) => i.value).join("\n")} className={inputClass + " font-mono"} />
             <SubmitButton>Save list</SubmitButton>
