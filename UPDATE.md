@@ -80,6 +80,24 @@ This replaces **all** data with that moment's copy, so anything entered since is
 ./ops/restore.sh backup_YYYY-MM-DD_HHMM.tar.enc
 ```
 
+## WhatsApp library (Baileys) updates
+
+WhatsApp changes its app regularly. New releases of the Baileys library keep the connection working. This is
+separate from app releases:
+
+- The WhatsApp container checks npm every 6 hours. When a newer release exists the owner sees
+  **"WhatsApp update: x"** under *Sign out*, a banner on the dashboard, and a line in the daily summary email.
+- **Settings → WhatsApp → Update to x** installs it: only the WhatsApp container is rebuilt and restarted
+  (a few minutes without WhatsApp). The linked number stays linked.
+- **Safety:** after installing, the updater waits up to 3 minutes for WhatsApp to reconnect. If it doesn't (or the
+  install fails), the previous version is restored automatically and the reason is shown.
+  **Roll back to …** returns to the previous version by hand.
+- **Automatic updates** (off by default): tick *Install new versions automatically* and choose an hour. At most one
+  try per day; a version that failed isn't tried automatically again. Owners get an email with the result.
+- The chosen version is stored in `.env.production` (`BAILEYS_VERSION`, `BAILEYS_PREVIOUS_VERSION`), not in the
+  code, so `git push prod main` keeps working. An app release that ships a newer Baileys always wins over an
+  older stored version.
+
 ## E. Good to know
 
 - **Back up before updating**: both update methods do this automatically.

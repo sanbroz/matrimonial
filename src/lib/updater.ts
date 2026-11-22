@@ -46,6 +46,48 @@ export async function getUpdateStatus(): Promise<UpdateStatus | null> {
   }
 }
 
+// ───────────── WhatsApp library (Baileys) ─────────────
+
+export interface BaileysRun {
+  status: "idle" | "running" | "success" | "failed";
+  target: string | null;
+  from: string | null;
+  rolledBack: boolean;
+  message: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  log: string[];
+}
+
+export async function getBaileysRun(): Promise<{ run: BaileysRun; override: string; previous: string; busy: string | null } | null> {
+  if (!updaterConfigured) return null;
+  try {
+    const r = await call("/baileys");
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function startBaileysUpdate(version: string): Promise<{ ok: boolean; error?: string }> {
+  return post("/baileys", { version });
+}
+
+export async function rollbackBaileys(): Promise<{ ok: boolean; error?: string }> {
+  return post("/baileys/rollback", {});
+}
+
+async function post(path: string, body: unknown): Promise<{ ok: boolean; error?: string }> {
+  if (!updaterConfigured) return { ok: false, error: "Updates are not set up on this server" };
+  try {
+    const res = await call(path, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } });
+    const j = await res.json().catch(() => ({}));
+    return res.status === 202 ? { ok: true } : { ok: false, error: j.error ?? `Updater error ${res.status}` };
+  } catch {
+    return { ok: false, error: "Could not reach the updater" };
+  }
+}
+
 export async function startUpdate(): Promise<{ ok: boolean; error?: string }> {
   if (!updaterConfigured) return { ok: false, error: "Updates are not set up on this server" };
   try {

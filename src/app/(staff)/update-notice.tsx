@@ -11,6 +11,7 @@ type Status = {
   updateAvailable?: boolean;
   unavailable?: boolean;
   update?: { status: "idle" | "running" | "success" | "failed"; log: string[] };
+  whatsapp?: { installed: string; latest: string | null } | null;
 };
 
 const CHECK_EVERY = 15 * 60_000;
@@ -96,6 +97,17 @@ export function UpdateNotice({ initial, isOwner }: { initial: Running; isOwner: 
               ? ` (${changes.length} change${changes.length === 1 ? "" : "s"})`
               : ""}
         </button>
+      )}
+
+      {isOwner && status?.whatsapp?.latest && (
+        <a
+          href="/settings/whatsapp"
+          className="flex w-full items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1.5 text-left text-xs font-medium text-emerald-900 ring-1 ring-emerald-200 hover:bg-emerald-100"
+          title={`WhatsApp library ${status.whatsapp.installed} → ${status.whatsapp.latest}`}
+        >
+          <span className="size-2 shrink-0 rounded-full bg-emerald-500" />
+          WhatsApp update: {status.whatsapp.latest}
+        </a>
       )}
 
       <dialog ref={dialog} className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-xl p-0 shadow-xl backdrop:bg-black/40">

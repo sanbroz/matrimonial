@@ -6,6 +6,7 @@ import { daysLeft, rupees } from "@/lib/money";
 import { needsAttention } from "@/lib/proposal-labels";
 import { isEmailConfigured, sendEmail } from "./email";
 import { openDues, renewalsDue } from "./reports";
+import { getWhatsAppStatus } from "./whatsapp";
 
 const IST = 330 * 60000;
 
@@ -78,6 +79,12 @@ export async function buildSummary(now = new Date()) {
     "None.",
   );
   lines.push(`\nYesterday: ${newLeads} new lead${newLeads === 1 ? "" : "s"}, ${rupees(collected._sum.amount ?? 0)} collected (${collected._count} receipts)`);
+
+  const wa = await getWhatsAppStatus();
+  if (wa.library?.updateAvailable) {
+    lines.push(`\nWhatsApp library update available: ${wa.library.installed} → ${wa.library.latest} (Settings → WhatsApp)`);
+  }
+  if (["logged_out", "closed"].includes(wa.status)) lines.push(`\nWhatsApp is DISCONNECTED: link the bureau number again in Settings → WhatsApp`);
 
   const url = process.env.APP_URL;
   if (url) lines.push(`\nOpen the CRM: ${url}`);

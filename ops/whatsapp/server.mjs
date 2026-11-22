@@ -6,7 +6,9 @@
 import { createServer } from "node:http";
 import { rm, mkdir } from "node:fs/promises";
 import { timingSafeEqual } from "node:crypto";
+import { readFileSync } from "node:fs";
 import makeWASocket, { Browsers, DisconnectReason, fetchLatestBaileysVersion, useMultiFileAuthState } from "baileys";
+import { compareVersions } from "./version-tools.mjs";
 import QRCode from "qrcode";
 import pino from "pino";
 
@@ -32,6 +34,42 @@ function remember(msg) {
   if (sentStore.size > SENT_KEEP) sentStore.delete(sentStore.keys().next().value);
 }
 const state = { status: "starting", qr: null, me: null, lastError: null, since: new Date().toISOString() };
+// ───────────── library version (for update notices) ─────────────
+const library = {
+  installed: JSON.parse(readFileSync(new URL("./node_modules/baileys/package.json", import.meta.url), "utf8")).version,
+  pinned: JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).dependencies.baileys,
+  latest: null,
+  updateAvailable: false,
+  checkedAt: null,
+  checkError: null,
+  /** WhatsApp Web protocol version used for the connection, and whether it was the newest */
+  waWebVersion: null,
+  waWebIsLatest: null,
+};
+
+async function checkLatest() {
+  try {
+    const r = await fetch("https://registry.npmjs.org/baileys", {
+      headers: { accept: "application/vnd.npm.install-v1+json" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!r.ok) throw new Error(`npm registry answered ${r.status}`);
+    const latest = (await r.json())["dist-tags"]?.latest;
+    if (!latest) throw new Error("no latest version on npm");
+    Object.assign(library, {
+      latest,
+      updateAvailable: compareVersions(latest, library.installed) > 0,
+      checkedAt: new Date().toISOString(),
+      checkError: null,
+    });
+    if (library.updateAvailable) console.log(`[wa] newer Baileys available: ${latest} (installed ${library.installed})`);
+  } catch (e) {
+    Object.assign(library, { checkedAt: new Date().toISOString(), checkError: e.message });
+  }
+}
+checkLatest();
+setInterval(checkLatest, 6 * 3600_000);
+
 // Image previews (thumbnails) need sharp; report it so problems are visible
 const sharpOk = await import("sharp").then(() => true).catch((e) => {
   console.error("[wa] sharp not available, images will be sent without a preview:", e.message);
@@ -50,7 +88,9 @@ async function connect() {
   const { state: auth, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   let version;
   try {
-    ({ version } = await fetchLatestBaileysVersion());
+    const v = await fetchLatestBaileysVersion();
+    version = v.version;
+    Object.assign(library, { waWebVersion: v.version?.join("."), waWebIsLatest: v.isLatest ?? null });
   } catch {
     /* use the library default */
   }
@@ -164,7 +204,11 @@ createServer(async (req, res) => {
   };
   if (!authorised(req)) return reply(401, { error: "unauthorised" });
   try {
-    if (req.method === "GET" && req.url === "/status") return reply(200, { ...state, thumbnails: !!sharpOk });
+    if (req.method === "GET" && req.url === "/status") return reply(200, { ...state, thumbnails: !!sharpOk, library });
+    if (req.method === "POST" && req.url === "/check-latest") {
+      await checkLatest();
+      return reply(200, library);
+    }
     if (req.method === "POST" && req.url === "/send") return reply(200, await send(await readJson(req)));
     if (req.method === "POST" && req.url === "/logout") {
       if (sock && state.status === "open") await sock.logout().catch(() => {});

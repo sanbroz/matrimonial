@@ -7,6 +7,7 @@ import { FollowUpDoneButton } from "@/components/follow-up-done";
 import { needsAttention } from "@/lib/proposal-labels";
 import { collections, currentMonth, openDues, renewalsDue } from "@/lib/services/reports";
 import { rupees } from "@/lib/money";
+import { getWhatsAppStatus } from "@/lib/services/whatsapp";
 
 export const metadata = { title: "Dashboard" };
 
@@ -47,10 +48,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   ]);
   const attention = openProposals.filter((p) => needsAttention(p)).length;
   const isOwner = user.role === "OWNER";
-  const [dues, renewals, monthPayments] = await Promise.all([
+  const [dues, renewals, monthPayments, wa] = await Promise.all([
     openDues(),
     renewalsDue(),
     isOwner ? collections(currentMonth()) : Promise.resolve([]),
+    isOwner ? getWhatsAppStatus() : Promise.resolve(null),
   ]);
   const outstanding = dues.reduce((s, d) => s + d.balance, 0);
   const collected = monthPayments.filter((p) => !p.voidedAt).reduce((s, p) => s + p.amount, 0);
@@ -79,6 +81,21 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         }
       />
       {denied && <div className="mb-4"><Alert tone="amber">That page is for the owner only.</Alert></div>}
+      {wa?.library?.updateAvailable && (
+        <div className="mb-4">
+          <Alert tone="amber">
+            A new WhatsApp library version is available ({wa.library.installed} → {wa.library.latest}). Install it to keep WhatsApp
+            working with WhatsApp&apos;s latest changes. <Link href="/settings/whatsapp" className="font-medium underline">Update in Settings → WhatsApp</Link>
+          </Alert>
+        </div>
+      )}
+      {isOwner && wa && ["logged_out", "closed"].includes(wa.status) && (
+        <div className="mb-4">
+          <Alert>
+            WhatsApp is disconnected. <Link href="/settings/whatsapp" className="font-medium underline">Link the bureau number again</Link>
+          </Alert>
+        </div>
+      )}
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         {stats.map((s) => (
           <Link key={s.label} href={s.href} className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm hover:border-brand-200">

@@ -7,12 +7,31 @@ const URL_ = process.env.WHATSAPP_URL;
 const TOKEN = process.env.WHATSAPP_TOKEN;
 export const whatsappConfigured = !!(URL_ && TOKEN);
 
+export interface WhatsAppLibrary {
+  installed: string;
+  pinned: string;
+  latest: string | null;
+  updateAvailable: boolean;
+  checkedAt: string | null;
+  checkError: string | null;
+  waWebVersion: string | null;
+  waWebIsLatest: boolean | null;
+}
+
 export interface WhatsAppStatus {
   status: "starting" | "qr" | "connecting" | "open" | "logged_out" | "closed" | "unavailable";
   qr: string | null;
   me: { id: string | null; name: string | null } | null;
   lastError: string | null;
   since?: string;
+  thumbnails?: boolean;
+  library?: WhatsAppLibrary;
+}
+
+/** Ask the WhatsApp service to check npm for a newer library now. */
+export async function checkLibraryNow(): Promise<void> {
+  if (!whatsappConfigured) return;
+  await call("/check-latest", { method: "POST" }, 20_000).catch(() => {});
 }
 
 async function call(path: string, init?: RequestInit, timeoutMs = 5000) {

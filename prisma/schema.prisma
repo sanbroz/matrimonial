@@ -118,6 +118,8 @@ model Settings {
   lastSummaryDate   String?
   /// Editable WhatsApp / email message templates.
   messageTemplates  Json?
+  /// WhatsApp library updates: auto-update on/off, hour, and the last automatic attempt.
+  whatsappOptions   Json?
   updatedAt         DateTime @updatedAt
 }
 

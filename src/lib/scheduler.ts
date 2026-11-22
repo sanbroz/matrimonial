@@ -15,6 +15,12 @@ export function startScheduler() {
     } catch (e) {
       console.error("[scheduler] daily summary failed", e);
     }
+    try {
+      const { autoUpdateTick } = await import("./services/wa-library");
+      await autoUpdateTick();
+    } catch (e) {
+      console.error("[scheduler] WhatsApp auto-update check failed", e);
+    }
   };
   setTimeout(tick, 30_000);
   setInterval(tick, 60_000);
