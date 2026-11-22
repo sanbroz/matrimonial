@@ -89,7 +89,12 @@ export function UpdateNotice({ initial, isOwner }: { initial: Running; isOwner: 
           className="flex w-full items-center gap-1.5 rounded-md bg-amber-50 px-2 py-1.5 text-left text-xs font-medium text-amber-900 ring-1 ring-amber-200 hover:bg-amber-100"
         >
           <span className="size-2 shrink-0 rounded-full bg-amber-500" />
-          Update available{status?.available?.version ? `: v${status.available.version}` : ""}
+          Update available
+          {status?.available?.version && status.available.version !== running.version
+            ? `: v${status.available.version}`
+            : changes.length
+              ? ` (${changes.length} change${changes.length === 1 ? "" : "s"})`
+              : ""}
         </button>
       )}
 
