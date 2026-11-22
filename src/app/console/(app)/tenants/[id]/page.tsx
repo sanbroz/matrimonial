@@ -2,6 +2,7 @@ import { requireConsoleAdmin } from "@/lib/auth/server";
 import { notFound } from "next/navigation";
 import { platform } from "@/lib/platform-db";
 import { clientForSchema } from "@/lib/db";
+import { demoCounts } from "@/lib/demo-data";
 import { billingState, CYCLE_LABELS, daysOverdue, type Cycle } from "@/lib/billing";
 import { rupees } from "@/lib/money";
 import { formatDateOnly, formatDateTime, toDateInput } from "@/lib/format";
@@ -18,6 +19,7 @@ import {
   deleteTenantAction,
   recordTenantPayment,
   restoreTenantAction,
+  tenantDemoData,
   setTenantStatus,
   updateTenantDetails,
   updateTenantDomain,
@@ -42,6 +44,7 @@ export default async function TenantPage({ params, searchParams }: { params: Pro
     db.lead.count(),
     db.settings.findUnique({ where: { id: 1 }, select: { bureauName: true } }),
   ]).catch(() => [null, null, null, null] as const);
+  const demo = await demoCounts(db).catch(() => null);
   let backups: BackupFile[] | null = null;
   let backupError: string | null = null;
   if (backupsConfigured) {
@@ -234,6 +237,24 @@ export default async function TenantPage({ params, searchParams }: { params: Pro
               downloadUrl={`/api/console/tenants/${t.id}/backup`}
             />
           </>
+        )}
+      </Card>
+
+      <Card title="Demo data" className="mt-5">
+        {demo?.any ? (
+          <form action={tenantDemoData} className="flex flex-wrap items-center gap-3">
+            <input type="hidden" name="id" value={t.id} />
+            <input type="hidden" name="op" value="delete" />
+            <span className="text-sm text-zinc-700">Loaded: {demo.profiles} sample profiles, {demo.leads} leads. The owner can also delete it in Settings → Demo data.</span>
+            <SubmitButton variant="danger" pendingText="Deleting…" confirm="Delete all demo data in this bureau? Their own records stay.">Delete demo data</SubmitButton>
+          </form>
+        ) : (
+          <form action={tenantDemoData} className="flex flex-wrap items-center gap-3">
+            <input type="hidden" name="id" value={t.id} />
+            <input type="hidden" name="op" value="load" />
+            <span className="text-sm text-zinc-700">No demo data. Add 40 Indian / Punjabi sample profiles with leads, proposals and receipts.</span>
+            <SubmitButton variant="secondary" pendingText="Adding…">Add demo data</SubmitButton>
+          </form>
         )}
       </Card>
 

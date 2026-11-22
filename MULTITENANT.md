@@ -57,6 +57,27 @@ address.
   - a list of every bureau's WhatsApp connection
 - **Settings:** platform Gmail (for your own emails), super admin logins, your password.
 
+## Demo data
+
+New bureaus can start with Indian / Punjabi **demo data**, so owners can try everything before entering real
+clients:
+- 40 profiles (Sikh, Hindu, Christian and Muslim families; Punjab, Chandigarh, Delhi, Haryana, and NRIs in Canada,
+  the UK, Australia, New Zealand and the USA; some second marriages)
+- 8 leads, notes and follow-ups
+- sample plans, memberships with receipts and open dues
+- proposals at every pipeline stage
+
+The data is safe to experiment with: phone numbers are `00000 0xxxx` and emails are `@example.com`, so nothing
+reaches a real person.
+
+- **Console:** the "Add demo data" checkbox when creating a bureau (on by default), and Add / Delete demo data on the
+  bureau's page.
+- **Bureau owner:** Settings → Demo data → *Delete demo data* (type DELETE DEMO).
+  - Only sample records go, along with everything attached to sample profiles. The owner's own records stay.
+  - If nothing else is left, profile codes and receipt numbers restart (e.g. PM1001, R1).
+  - A notice on the dashboard reminds them while demo data is there.
+- **Command line (development):** `npm run db:seed-demo -- <subdomain>`, or add `--delete`.
+
 ## Bureau owners
 
 - **Settings → Backups:** *Back up now*, the list of backups, *Download* (they choose a password for the `.7z`), and

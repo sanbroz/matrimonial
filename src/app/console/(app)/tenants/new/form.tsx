@@ -68,6 +68,13 @@ export function NewTenantForm({ domain }: { domain: string }) {
           </Field>
         </div>
       </Card>
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" name="demo" defaultChecked className="mt-0.5 size-4 accent-brand-600" />
+        <span>
+          Add Indian / Punjabi demo data (40 sample profiles, leads, proposals, receipts) so they can try it out.
+          <span className="block text-xs text-zinc-500">The owner deletes it with one click (Settings → Demo data) to start with real clients.</span>
+        </span>
+      </label>
       <p className="text-sm text-zinc-500">Billing (fee, cycle and due date) can be set on the next page.</p>
       <SubmitButton pendingText="Creating the bureau…">Create bureau</SubmitButton>
     </form>

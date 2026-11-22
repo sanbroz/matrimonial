@@ -15,6 +15,7 @@ const TABS = [
   { href: "/settings/whatsapp", label: "WhatsApp" },
   { href: "/settings/messages", label: "Message templates" },
   { href: "/settings/backups", label: "Backups" },
+  { href: "/settings/demo", label: "Demo data" },
 ];
 
 export function SettingsTabs() {

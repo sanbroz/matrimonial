@@ -22,6 +22,9 @@ import { restoreTenantBackup, takeFullBackup, takeTenantBackup } from "@/lib/bac
 import { sendPlatformEmail } from "@/lib/services/platform-email";
 import { buildPlatformSummary } from "@/lib/services/billing";
 import { savePlatformWhatsAppOptions, readPlatformWhatsAppOptions } from "@/lib/services/wa-library";
+import { deleteDemoForCurrentBureau, loadDemoForCurrentBureau } from "@/lib/services/demo";
+import { DemoDataError } from "@/lib/demo-data";
+import { runAsTenant } from "@/lib/tenant/context";
 
 const DUMMY_HASH = "$2b$10$jPc0LyIrKDV8zfasxi6jgO7Sfa0R5yqB9/8o5sqelufJ.mNcJoov.";
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -70,6 +73,7 @@ export async function createTenantAction(_prev: { error?: string; values?: Recor
   if (!/^\S+@\S+\.\S+$/.test(values.ownerEmail)) return { error: "Enter the owner's email address.", values };
   if (password.length < 8) return { error: "The owner's password needs at least 8 characters.", values };
   let id: string;
+  let demoNote = "";
   try {
     const t = await createTenant({
       slug: values.slug,
@@ -78,11 +82,19 @@ export async function createTenantAction(_prev: { error?: string; values?: Recor
       owner: { name: values.ownerName || "Owner", email: values.ownerEmail, password },
     });
     id = t.id;
+    if (fd.get("demo") === "on") {
+      try {
+        const r = await runAsTenant(t, () => loadDemoForCurrentBureau());
+        demoNote = ` Demo data added (${r.profiles} profiles); the owner can delete it in Settings → Demo data.`;
+      } catch (e) {
+        demoNote = ` Demo data could not be added: ${errMsg(e)}`;
+      }
+    }
   } catch (e) {
     if (!(e instanceof TenantError)) console.error("[console] create bureau failed", e);
     return { error: e instanceof TenantError ? e.message : `Could not create the bureau: ${errMsg(e)}`, values };
   }
-  redirect(`/console/tenants/${id}?ok=${encodeURIComponent("Bureau created. Send the owner their address and login.")}`);
+  redirect(`/console/tenants/${id}?ok=${encodeURIComponent(`Bureau created. Send the owner their address and login.${demoNote}`)}`);
 }
 
 export async function updateTenantDetails(fd: FormData) {
@@ -342,4 +354,27 @@ export async function saveWhatsAppAutoUpdate(fd: FormData) {
   });
   revalidatePath("/console/updates");
   go("/console/updates", autoUpdate ? "Automatic WhatsApp library updates on" : "Automatic updates off");
+}
+
+// ───────────── demo data ─────────────
+
+export async function tenantDemoData(fd: FormData) {
+  await requireConsoleAdmin();
+  const id = str(fd, "id");
+  const t = await getTenantById(id);
+  if (!t) go("/console", "Bureau not found", "error");
+  const path = `/console/tenants/${id}`;
+  if (str(fd, "op") === "delete") {
+    const r = await runAsTenant(t!, () => deleteDemoForCurrentBureau());
+    revalidatePath(path);
+    go(path, `Demo data deleted (${r.profiles} profiles, ${r.leads} leads, ${r.payments} receipts)`);
+  }
+  try {
+    const r = await runAsTenant(t!, () => loadDemoForCurrentBureau());
+    revalidatePath(path);
+    go(path, `Demo data added (${r.profiles} profiles, ${r.leads} leads, ${r.proposals} proposals)`);
+  } catch (e) {
+    if (isRedirect(e)) throw e;
+    go(path, e instanceof DemoDataError ? e.message : `Demo data not added: ${errMsg(e)}`, "error");
+  }
 }

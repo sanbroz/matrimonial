@@ -158,6 +158,8 @@ model Plan {
   successFee   Int?
   description  String?
   active       Boolean      @default(true)
+  /// Sample data; removed by "Delete demo data"
+  isDemo       Boolean      @default(false)
   createdAt    DateTime     @default(now())
   memberships  Membership[]
 }
@@ -200,6 +202,8 @@ model Lead {
   createdBy    User       @relation("LeadCreatedBy", fields: [createdById], references: [id])
   profileId    String?    @unique
   profile      Profile?   @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  /// Sample data; removed by "Delete demo data"
+  isDemo       Boolean    @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -316,6 +320,8 @@ model Profile {
   consentAt    DateTime?
 
   importedFrom String?
+  /// Sample data; removed by "Delete demo data" (with everything attached to it)
+  isDemo       Boolean  @default(false)
   createdById  String
   createdBy    User     @relation("ProfileCreatedBy", fields: [createdById], references: [id])
   createdAt    DateTime @default(now())

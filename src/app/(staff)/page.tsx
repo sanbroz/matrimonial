@@ -8,6 +8,7 @@ import { needsAttention } from "@/lib/proposal-labels";
 import { collections, currentMonth, openDues, renewalsDue } from "@/lib/services/reports";
 import { rupees } from "@/lib/money";
 import { getWhatsAppStatus } from "@/lib/services/whatsapp";
+import { currentDemoCounts } from "@/lib/services/demo";
 
 export const metadata = { title: "Dashboard" };
 
@@ -48,11 +49,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   ]);
   const attention = openProposals.filter((p) => needsAttention(p)).length;
   const isOwner = user.role === "OWNER";
-  const [dues, renewals, monthPayments, wa] = await Promise.all([
+  const [dues, renewals, monthPayments, wa, demo] = await Promise.all([
     openDues(),
     renewalsDue(),
     isOwner ? collections(currentMonth()) : Promise.resolve([]),
     isOwner ? getWhatsAppStatus() : Promise.resolve(null),
+    currentDemoCounts(),
   ]);
   const outstanding = dues.reduce((s, d) => s + d.balance, 0);
   const collected = monthPayments.filter((p) => !p.voidedAt).reduce((s, p) => s + p.amount, 0);
@@ -81,6 +83,18 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         }
       />
       {denied && <div className="mb-4"><Alert tone="amber">That page is for the owner only.</Alert></div>}
+      {demo.any && (
+        <div className="mb-4">
+          <Alert tone="amber">
+            This CRM contains <strong>demo data</strong> ({demo.profiles} sample profiles, {demo.leads} leads) to try things out.{" "}
+            {isOwner ? (
+              <>When you&apos;re ready for your real clients, <Link href="/settings/demo" className="font-medium underline">delete the demo data</Link>.</>
+            ) : (
+              <>The owner can delete it in Settings → Demo data.</>
+            )}
+          </Alert>
+        </div>
+      )}
       {isOwner && wa && (wa.status === "closed" || (wa.status === "not_linked" && wa.lastError)) && (
         <div className="mb-4">
           <Alert>
