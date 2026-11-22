@@ -13,6 +13,7 @@ import { PhotoGallery } from "./photo-gallery";
 import { ProposalsPanel } from "./proposals-panel";
 import { MoneyPanel } from "./money-panel";
 import { MessagesLog } from "./messages-log";
+import { countMatches } from "@/lib/services/matching";
 
 export const metadata = { title: "Profile" };
 
@@ -41,6 +42,7 @@ export default async function ProfilePage({
     },
   });
   if (!p) notFound();
+  const matchCount = (await countMatches([p.id])).get(p.id);
   const pref = p.preference;
   const age = ageFrom(p.dob);
   const isOwner = user.role === "OWNER";
@@ -71,7 +73,9 @@ export default async function ProfilePage({
         actions={
           <>
             <ButtonLink href={`/profiles/${p.id}/biodata`}>Biodata</ButtonLink>
-            <ButtonLink href={`/profiles/${p.id}/matches`}>Suggested matches</ButtonLink>
+            <ButtonLink href={`/profiles/${p.id}/matches`}>
+              Suggested matches{matchCount !== undefined && <span className="rounded-full bg-brand-50 px-2 text-xs font-semibold text-brand-700">{matchCount}</span>}
+            </ButtonLink>
             <ButtonLink href={`/profiles/${p.id}/edit`} variant="primary">Edit profile</ButtonLink>
           </>
         }

@@ -9,6 +9,7 @@ import { MARITAL_LABELS } from "@/lib/profile-fields";
 import { Alert, Badge, ButtonLink, EmptyState, PageHeader, buttonClass, cx, inputClass } from "@/components/ui";
 import { deleteSearch, saveSearch } from "./saved-search-actions";
 import { SelectionBar } from "@/components/small-client";
+import { countMatches } from "@/lib/services/matching";
 
 export const metadata = { title: "Profiles" };
 
@@ -66,6 +67,8 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
     loadOptions(),
     prisma.savedSearch.findMany({ orderBy: { name: "asc" }, include: { user: { select: { name: true } } } }),
   ]);
+  // Suggested-match counts for the profiles on this page (same rules as "Suggested matches")
+  const matchCounts = await countMatches(profiles.map((p) => p.id));
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const filterQuery = new URLSearchParams(
     Object.entries(sp).filter(([k, v]) => v && !["page", "deleted"].includes(k)) as [string, string][],
@@ -181,6 +184,7 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
                 <th className="px-3 py-2">Profile</th>
                 <th className="px-3 py-2">Age / height</th>
                 <th className="px-3 py-2">Community</th>
+                <th className="px-3 py-2 text-center">Matches</th>
                 <th className="hidden px-3 py-2 md:table-cell">Education / work</th>
                 <th className="hidden px-3 py-2 md:table-cell">Location</th>
                 <th className="hidden px-3 py-2 sm:table-cell">Status</th>
@@ -217,6 +221,22 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
                   <td className="px-3 py-2 text-zinc-700">
                     {p.religion}
                     <span className="block text-xs text-zinc-500">{[p.caste, p.gotraSelf].filter(Boolean).join(" · ")}</span>
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    {matchCounts.has(p.id) ? (
+                      <Link
+                        href={`/profiles/${p.id}/matches`}
+                        title={`${matchCounts.get(p.id)} suggested matches (not yet shared)`}
+                        className={cx(
+                          "inline-flex min-w-9 justify-center rounded-full px-2 py-0.5 text-xs font-semibold",
+                          matchCounts.get(p.id) ? "bg-brand-50 text-brand-700 hover:bg-brand-100" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200",
+                        )}
+                      >
+                        {matchCounts.get(p.id)}
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-zinc-400" title="Only active profiles get suggestions">—</span>
+                    )}
                   </td>
                   <td className="hidden px-3 py-2 text-zinc-700 md:table-cell">
                     {p.education}
