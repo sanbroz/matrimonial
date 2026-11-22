@@ -86,7 +86,9 @@ services:
     image: bureau-crm-updater
     restart: unless-stopped
     environment:
-      UPDATER_TOKEN: ${UPDATER_TOKEN:?run ops/deploy.sh, it creates UPDATER_TOKEN}
+      # Created by ops/deploy.sh. Optional here so backup/restore scripts work before the first deploy;
+      # the updater itself refuses to start without it.
+      UPDATER_TOKEN: ${UPDATER_TOKEN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - .:/repo
