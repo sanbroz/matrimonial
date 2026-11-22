@@ -15,6 +15,7 @@ import { MoneyPanel } from "./money-panel";
 import { MessagesLog } from "./messages-log";
 import { countMatches } from "@/lib/services/matching";
 import { FormLinkCard } from "@/components/form-link-card";
+import { bureauFeatures } from "@/lib/services/workflow";
 
 export const metadata = { title: "Profile" };
 
@@ -43,7 +44,7 @@ export default async function ProfilePage({
     },
   });
   if (!p) notFound();
-  const matchCount = (await countMatches([p.id])).get(p.id);
+  const [matchCount, features] = await Promise.all([countMatches([p.id]).then((m) => m.get(p.id)), bureauFeatures()]);
   const pref = p.preference;
   const age = ageFrom(p.dob);
   const isOwner = user.role === "OWNER";
@@ -133,7 +134,7 @@ export default async function ProfilePage({
                 ["Rashi / nakshatra", [p.rashi, p.nakshatra].filter(Boolean).join(" / ")],
               ]}
             />
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
+            {features.horoscope && <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
               <span className="text-sm text-zinc-500">Kundli:</span>
               {p.kundliPath ? (
                 <>
@@ -151,7 +152,7 @@ export default async function ProfilePage({
                   <SubmitButton variant="secondary" pendingText="Uploading…">Upload</SubmitButton>
                 </form>
               )}
-            </div>
+            </div>}
           </Card>
 
           <Card title="Education, career & location">
@@ -242,7 +243,7 @@ export default async function ProfilePage({
       {/* id here (not on the card) so the ?ok= / ?error= message is in view after "#money" */}
       <div id="money" className="mt-5 scroll-mt-4">
         {(sp.ok || sp.error) && <div className="mb-2">{sp.error ? <Alert>{sp.error}</Alert> : <Alert tone="green">{sp.ok}</Alert>}</div>}
-        <MoneyPanel profileId={p.id} isOwner={isOwner} />
+        {features.payments && <MoneyPanel profileId={p.id} isOwner={isOwner} />}
       </div>
 
       <div className="mt-5">

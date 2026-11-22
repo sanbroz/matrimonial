@@ -21,7 +21,9 @@ export async function submitEnquiry(token: string, _prev: EnquiryState, fd: Form
   const v = (k: string) => String(fd.get(k) ?? "");
   const values = { name: v("name"), phone: v("phone"), forWhom: v("forWhom"), city: v("city"), message: v("message") };
   const ip = await clientIp();
-  if (limiter.blockedFor(`enq:${tenant.id}:${ip}`)) return { error: "Thank you, we already have your details. We will call you soon.", values };
+  if (limiter.blockedFor(`enq:${tenant.id}:${ip}`)) {
+    return { error: "Too many enquiries were sent from this connection. Please try again later, or call us directly.", values };
+  }
 
   const c = checkEnquiry({ ...values, consent: fd.get("consent") === "on", trap: v("website") });
   if (!c.ok) {
@@ -41,13 +43,23 @@ export async function submitEnquiry(token: string, _prev: EnquiryState, fd: Form
   const existing = await prisma.lead.findFirst({
     where: { phone: { contains: last10 }, createdAt: { gte: new Date(Date.now() - 90 * 86400000) } },
     orderBy: { createdAt: "desc" },
-    select: { id: true, status: true, leadFormId: true },
+    select: { id: true, status: true, leadFormId: true, profileId: true },
   });
   if (existing) {
+    const body = `Enquired again via ${via}.${summary ? `\n${summary}` : ""}`;
+    // Already a profile: the note and call-back go on the profile, where staff work with the family
+    const target = existing.profileId ? { profileId: existing.profileId } : { leadId: existing.id };
     await prisma.$transaction(async (tx) => {
-      await tx.note.create({ data: { kind: "OTHER", body: `Enquired again via ${via}.${summary ? `\n${summary}` : ""}`, leadId: existing.id, authorId: owner.id } });
-      await tx.followUp.create({ data: { title: "Call back: enquired again online", dueAt: new Date(), leadId: existing.id, createdById: owner.id } });
-      if (!existing.leadFormId) await tx.lead.update({ where: { id: existing.id }, data: { leadFormId: form.id } });
+      await tx.note.create({ data: { kind: "OTHER", body, ...target, authorId: owner.id } });
+      await tx.followUp.create({ data: { title: "Call back: enquired again online", dueAt: new Date(), ...target, createdById: owner.id } });
+      await tx.lead.update({
+        where: { id: existing.id },
+        data: {
+          ...(existing.leadFormId ? {} : { leadFormId: form.id }),
+          // A lost lead that comes back is open again
+          ...(existing.status === "LOST" ? { status: "FOLLOW_UP" as const, lostReason: null } : {}),
+        },
+      });
     });
   } else {
     await prisma.lead.create({

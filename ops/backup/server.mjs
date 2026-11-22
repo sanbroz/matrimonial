@@ -8,10 +8,11 @@
 //      POST /t/<slug>/restore {file}                  → safety backup, then restore → { safety }
 //      (each bureau's schema is looked up in the platform database, never taken from the request)
 //      POST /t/<slug>/export  {file, password}        → password-protected .7z download (binary)
+//      POST /t/<slug>/archive                         → bureau deleted: move its backups to /backups/deleted
 // The backup passphrase stays in this container; the app never sees it.
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
-import { readdir, stat, rm, mkdtemp } from "node:fs/promises";
+import { readdir, stat, rm, mkdtemp, mkdir, rename } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { timingSafeEqual } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -154,7 +155,7 @@ createServer(async (req, res) => {
       await serial(() => sh("/usr/local/bin/backup.sh"));
       return reply(200, { ok: true });
     }
-    const m = url.match(/^\/t\/([a-z0-9-]+)(?:\/(backup|restore|export))?$/);
+    const m = url.match(/^\/t\/([a-z0-9-]+)(?:\/(backup|restore|export|archive))?$/);
     if (!m || !SLUG_RE.test(m[1])) return reply(404, { error: "not found" });
     const [, slug, action] = m;
     const dir = `/backups/tenants/${slug}`;
@@ -173,6 +174,18 @@ createServer(async (req, res) => {
       const safety = await tenantBackup(slug, schema, "before-restore");
       await serial(() => sh("/usr/local/bin/tenant-restore.sh", [slug, schema, body.file]));
       return reply(200, { ok: true, safety });
+    }
+    if (action === "archive") {
+      // Bureau deleted: move its backups out of reach of any future bureau with the same subdomain
+      // (kept for the platform under /backups/deleted until removed by hand)
+      const target = `/backups/deleted/${slug}_${new Date().toISOString().replace(/[:.]/g, "-")}`;
+      await serial(async () => {
+        await mkdir("/backups/deleted", { recursive: true });
+        await rename(dir, target).catch((e) => {
+          if (e.code !== "ENOENT") throw e;
+        });
+      });
+      return reply(200, { ok: true, archivedTo: target });
     }
     if (action === "export") {
       if (!FILE_RE.test(body.file ?? "")) throw bad("bad file");

@@ -110,6 +110,10 @@ model Settings {
   receiptPrefix     String   @default("R")
   /// Does the bureau arrange family meetings? Off = profiles are only shared (no meeting stages)
   trackMeetings     Boolean  @default(true)
+  /// Modules this bureau uses (Settings → Features); missing = on
+  features          Json?
+  /// The "Getting started" checklist was closed by the owner
+  onboardingDone    Boolean  @default(false)
   /// Profile fields this bureau doesn't use (input names); hidden on forms, kept in the data
   hiddenFields      String[] @default([])
   /// How clients pay the bureau (sent with "Send payment details")
@@ -351,6 +355,8 @@ model Profile {
   notes         Note[]
   followUps     FollowUp[]
   proposalsSent Proposal[]         @relation("ProposalFrom")
+  shortlist     Shortlist[]        @relation("ShortlistClient")
+  shortlistedIn Shortlist[]        @relation("ShortlistCandidate")
   formLinks     ProfileFormLink[]
   proposalsGot  Proposal[]         @relation("ProposalTo")
   memberships   Membership[]
@@ -468,6 +474,9 @@ model Proposal {
   declineReason String?
   meetingAt     DateTime?
   matchedAt     DateTime?
+  /// Success stories: wedding date and a short note once the couple married
+  marriedOn     DateTime?       @db.Date
+  storyNote     String?
   notes         String?
   createdById   String
   createdBy     User            @relation(fields: [createdById], references: [id])
@@ -655,4 +664,18 @@ model LeadForm {
   createdById String
   createdAt   DateTime @default(now())
   leads       Lead[]
+}
+
+/// Profiles a staff member picked for a family before sending them (Suggested matches → Shortlist).
+model Shortlist {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Profile  @relation("ShortlistClient", fields: [clientId], references: [id], onDelete: Cascade)
+  candidateId String
+  candidate   Profile  @relation("ShortlistCandidate", fields: [candidateId], references: [id], onDelete: Cascade)
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@unique([clientId, candidateId])
+  @@index([candidateId])
 }

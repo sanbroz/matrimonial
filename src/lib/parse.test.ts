@@ -83,7 +83,9 @@ describe("phones & lists", () => {
     expect(() => normalisePhone("12")).toThrow(ParseError);
   });
   it("splits lists", () => {
-    expect(parseList("Jatt, Saini; Kamboj / Jatt")).toEqual(["Jatt", "Saini", "Kamboj"]);
+    expect(parseList("Jatt, Saini; Kamboj | Jatt")).toEqual(["Jatt", "Saini", "Kamboj"]);
+    // An option containing a slash stays one value
+    expect(parseList("Bania / Aggarwal, Khatri")).toEqual(["Bania / Aggarwal", "Khatri"]);
     expect(parseList("")).toEqual([]);
   });
 });

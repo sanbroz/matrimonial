@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ProposalStatus } from "@prisma/client";
+import { requireFeature } from "@/lib/services/workflow";
 import { requireUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
@@ -12,9 +13,11 @@ export const metadata = { title: "Pipeline" };
 
 const COLUMNS: ProposalStatus[] = ["SHARED", "INTERESTED", "MEETING_SCHEDULED", "MET", "MATCHED"];
 const MATCHED_DAYS = 60;
+const COLUMN_MAX = 60;
 
 export default async function PipelinePage({ searchParams }: { searchParams: Promise<{ attention?: string }> }) {
   await requireUser();
+  await requireFeature("pipeline");
   const { attention } = await searchParams;
   const { trackMeetings } = await workflowSettings();
   const now = new Date();
@@ -40,7 +43,7 @@ export default async function PipelinePage({ searchParams }: { searchParams: Pro
     <>
       <PageHeader
         title="Pipeline"
-        subtitle="Every biodata shared with a family, and what they said."
+        subtitle={<>Every biodata shared with a family, and what they said. <Link href="/matched" className="text-brand-700 hover:underline">Matched couples →</Link></>}
         actions={
           <div className="inline-flex overflow-hidden rounded-md border border-zinc-300 text-sm">
             <Link href="/pipeline" className={cx("px-3 py-2", !attention ? "bg-brand-600 text-white" : "bg-white")}>All ({all.length})</Link>
@@ -55,14 +58,21 @@ export default async function PipelinePage({ searchParams }: { searchParams: Pro
       ) : (
         <div className={cx("grid grid-cols-1 gap-4 md:grid-cols-2", gridCols)}>
           {columns.map((col) => {
-            const items = shown.filter((p) => p.status === col);
+            const all = shown.filter((p) => p.status === col);
+            // Long columns: the ones waiting longest first, the rest summarised
+            const items = all.slice(0, COLUMN_MAX);
             return (
               <section key={col} className="min-w-0 rounded-lg bg-zinc-100 p-2">
                 <h2 className="mb-2 flex items-center justify-between px-1 text-sm font-semibold">
-                  {PROPOSAL_LABELS[col]} <span className="text-xs font-normal text-zinc-500">{items.length}</span>
+                  {PROPOSAL_LABELS[col]} <span className="text-xs font-normal text-zinc-500">{all.length}</span>
                 </h2>
                 <div className="space-y-2">
                   {items.length === 0 && <p className="px-1 py-2 text-xs text-zinc-400">None</p>}
+                  {all.length > items.length && (
+                    <p className="px-1 py-1 text-xs text-zinc-500">
+                      Showing the {COLUMN_MAX} waiting longest; {all.length - items.length} more. Update or close these to see the rest.
+                    </p>
+                  )}
                   {items.map((p) => {
                     const flag = needsAttention(p, now);
                     return (

@@ -6,6 +6,7 @@ import { loadOptions } from "@/lib/services/profiles";
 import { hiddenProfileFields } from "@/lib/services/workflow";
 import { FAMILY_MAX_PHOTOS, FAMILY_SECTIONS, findActiveFormLink } from "@/lib/services/form-links";
 import { profileToFormValues } from "@/lib/profile-form-values";
+import { inputName, visibleFields } from "@/lib/profile-fields";
 import { ProfileForm } from "@/app/(staff)/profiles/profile-form";
 import { PhotoUploader } from "@/app/(staff)/profiles/[id]/photo-uploader";
 import { Card } from "@/components/ui";
@@ -44,6 +45,8 @@ export default async function FamilyFormPage({ params }: { params: Promise<{ tok
   ]);
   if (!profile) notFound();
   const { preference, ...rest } = profile;
+  const allowed = new Set(visibleFields(hidden).filter((f) => FAMILY_SECTIONS.includes(f.section)).map(inputName));
+  const initial = Object.fromEntries(Object.entries(profileToFormValues(rest, preference)).filter(([k]) => allowed.has(k)));
 
   return (
     <main className="mx-auto max-w-4xl px-3 py-5 sm:px-4">
@@ -60,17 +63,18 @@ export default async function FamilyFormPage({ params }: { params: Promise<{ tok
       <Card title={`Photos (${photos} of up to ${FAMILY_MAX_PHOTOS})`} className="mb-5">
         <div className="flex items-center gap-4">
           <PhotoUploader profileId={profile.id} upload={uploadFamilyPhoto.bind(null, token)} className="h-24 w-20 shrink-0" />
-          <p className="text-sm text-zinc-600">Clear, recent photos help families respond. They are added straight away (no need to press Save).</p>
+          <p className="text-sm text-zinc-600">Clear, recent photos help families respond. They are sent to the bureau straight away (no need to press Save); the bureau checks them before using them.</p>
         </div>
       </Card>
 
       <ProfileForm
         action={submitFamilyForm.bind(null, token)}
-        initial={profileToFormValues(rest, preference)}
+        initial={initial}
         options={options}
         hiddenFields={hidden}
         sections={FAMILY_SECTIONS}
         family
+        version={profile.updatedAt.toISOString()}
         submitLabel="Save my details"
       />
     </main>

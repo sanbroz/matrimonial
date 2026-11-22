@@ -19,6 +19,7 @@ import { addressee, messageContext } from "@/lib/services/message-vars";
 import { isEmailConfigured } from "@/lib/services/email";
 import { whatsappConfigured } from "@/lib/services/whatsapp";
 import { renderTemplate } from "@/lib/templates";
+import { bureauFeatures } from "@/lib/services/workflow";
 
 export const metadata = { title: "Biodata" };
 
@@ -44,7 +45,9 @@ export default async function BiodataPage({
   ]);
   if (!profile) notFound();
 
-  const options = readBiodataOptions(settings.biodataOptions);
+  const features = await bureauFeatures();
+  const baseOptions = readBiodataOptions(settings.biodataOptions);
+  const options = features.horoscope ? baseOptions : { ...baseOptions, sections: baseOptions.sections.filter((s) => s !== "horoscope") };
   const lang = sp.lang === "pa" || sp.lang === "en" ? sp.lang : options.defaultLanguage;
   const content = buildBiodata(profile, options, lang, nowIST());
 
@@ -106,9 +109,9 @@ export default async function BiodataPage({
             </div>
             <ExportButtons code={profile.code} lang={lang} />
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
+          {(features.whatsapp || features.email) && <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
             <span className="text-sm text-zinc-600">Send{client ? ` to ${client.code}'s family` : ""}:</span>
-            <SendMessageButton
+            {features.whatsapp && <SendMessageButton
               channel="whatsapp"
               label="WhatsApp"
               title={`Send biodata ${profile.code} on WhatsApp`}
@@ -118,8 +121,8 @@ export default async function BiodataPage({
               fields={{ ...sendFields, channel: "whatsapp" }}
               attach={{ elementId: "biodata-sheet", as: "jpg", filename: `${profile.code}-biodata${lang === "pa" ? "-punjabi" : ""}.jpg` }}
               disabledReason={whatsappConfigured ? null : "WhatsApp is available on the production server"}
-            />
-            <SendMessageButton
+            />}
+            {features.email && <SendMessageButton
               channel="email"
               label="Email"
               title={`Email biodata ${profile.code}`}
@@ -130,8 +133,8 @@ export default async function BiodataPage({
               fields={{ ...sendFields, channel: "email" }}
               attach={{ elementId: "biodata-sheet", as: "pdf", filename: `${profile.code}-biodata${lang === "pa" ? "-punjabi" : ""}.pdf` }}
               disabledReason={emailReady ? null : "Set up email first (Settings → Email)"}
-            />
-          </div>
+            />}
+          </div>}
           <div className="mt-3 border-t border-zinc-100 pt-3">
             {client ? (
               alreadyShared ? (

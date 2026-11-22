@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { appVersion } from "@/lib/version";
 import { logoutAction } from "@/app/login/actions";
 import { NavLinks } from "./nav-links";
+import { bureauFeatures } from "@/lib/services/workflow";
 import { UpdateNotice } from "@/components/update-notice";
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
@@ -19,8 +20,18 @@ export default async function StaffLayout({ children }: { children: React.ReactN
             {user.name} · {isOwner ? "Owner" : "Staff"}
           </div>
         </div>
+        {/* Search everything: profile code, name, phone, city; leads too */}
+        <form action="/search" role="search" className="px-3 pb-2">
+          <input
+            name="q"
+            type="search"
+            placeholder="Search code, name, phone…"
+            aria-label="Search profiles and leads"
+            className="block w-full rounded-md border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-sm focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-200"
+          />
+        </form>
         <div className="md:flex-1 md:overflow-y-auto">
-          <NavLinks isOwner={isOwner} />
+          <NavLinks isOwner={isOwner} features={await bureauFeatures()} />
         </div>
         <div className="hidden space-y-2 border-t border-zinc-100 px-4 py-3 md:block">
           <form action={logoutAction}>

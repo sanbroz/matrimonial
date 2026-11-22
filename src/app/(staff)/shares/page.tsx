@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireFeature } from "@/lib/services/workflow";
 import { requireUser } from "@/lib/auth/server";
 import { requireTenant } from "@/lib/tenant/context";
 import { tenantBaseUrl } from "@/lib/tenant/registry";
@@ -15,6 +16,7 @@ export const metadata = { title: "Share links" };
 
 export default async function ShareLinksPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
   await requireUser();
+  await requireFeature("shareLinks");
   const tenant = await requireTenant();
   const sp = await searchParams;
   const [links, base, users] = await Promise.all([

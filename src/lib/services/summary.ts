@@ -9,7 +9,7 @@ import { openDues, renewalsDue } from "./reports";
 import { getWhatsAppStatus } from "./whatsapp";
 import { currentTenant } from "@/lib/tenant/context";
 import { tenantBaseUrl } from "@/lib/tenant/registry";
-import { workflowSettings } from "./workflow";
+import { bureauFeatures, workflowSettings } from "./workflow";
 import { pendingMatches } from "./matching";
 
 const IST = 330 * 60000;
@@ -78,12 +78,14 @@ export async function buildSummary(now = new Date()) {
     "None: every active profile has been sent its matches.",
   );
   lines.push(`\nFamilies to call back about shared profiles: ${attention} (of ${open.length} waiting for a reply)`);
-  section(
+  // Bureaus that switched Payments off don't get money sections
+  const money = (await bureauFeatures()).payments;
+  if (money) section(
     `Outstanding dues: ${rupees(outstanding)} (${dues.length})`,
     dues.slice(0, 10).map((d) => `${d.profile.code} ${d.profile.fullName}: ${rupees(d.balance)} for ${d.label}`),
     "Nothing outstanding.",
   );
-  section(
+  if (money) section(
     `Memberships to renew (${renewals.length})`,
     renewals.map((m) => {
       const left = daysLeft(m.endDate);
@@ -91,7 +93,7 @@ export async function buildSummary(now = new Date()) {
     }),
     "None.",
   );
-  lines.push(`\nYesterday: ${newLeads} new lead${newLeads === 1 ? "" : "s"}, ${rupees(collected._sum.amount ?? 0)} collected (${collected._count} receipts)`);
+  lines.push(`\nYesterday: ${newLeads} new lead${newLeads === 1 ? "" : "s"}${money ? `, ${rupees(collected._sum.amount ?? 0)} collected (${collected._count} receipts)` : ""}`);
 
   const wa = await getWhatsAppStatus();
   if (wa.status === "closed" || (wa.status === "not_linked" && wa.lastError)) lines.push(`\nWhatsApp is DISCONNECTED: link the bureau number again in Settings → WhatsApp`);

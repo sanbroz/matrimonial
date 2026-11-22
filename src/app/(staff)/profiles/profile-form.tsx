@@ -27,6 +27,7 @@ export function ProfileForm({
   hiddenFields,
   family = false,
   sections: onlySections,
+  version,
 }: {
   action: Action;
   initial: FormValues;
@@ -40,6 +41,8 @@ export function ProfileForm({
   family?: boolean;
   /** Only these sections (family form leaves out internal ones) */
   sections?: string[];
+  /** The profile's updatedAt when the form was opened (refuses to overwrite newer changes) */
+  version?: string;
 }) {
   const [state, formAction] = useActionState(action, {});
   const values = state.values ?? initial;
@@ -53,6 +56,7 @@ export function ProfileForm({
       {leadId && <input type="hidden" name="leadId" value={leadId} />}
       {/* Which fields this form shows: only these are saved (others stay as they are) */}
       <input type="hidden" name="_fields" value={fields.map(inputName).join(",")} />
+      {(state.version ?? version) && <input type="hidden" name="_version" value={state.version ?? version} />}
       {usedCategories.map((c) => (
         <datalist key={c} id={`opt-${c}`}>
           {(options[c] ?? []).map((v) => (

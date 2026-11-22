@@ -1,3 +1,4 @@
+import { requireFeature } from "@/lib/services/workflow";
 import { requireOwner } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { getWhatsAppStatus } from "@/lib/services/whatsapp";
@@ -12,6 +13,7 @@ export const metadata = { title: "WhatsApp" };
 
 export default async function WhatsAppSettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
   await requireOwner();
+  await requireFeature("whatsapp");
   const sp = await searchParams;
   const [status, recent] = await Promise.all([
     getWhatsAppStatus(),

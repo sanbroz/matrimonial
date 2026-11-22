@@ -1,5 +1,6 @@
 import Link from "next/link";
 import QRCode from "qrcode";
+import { requireFeature } from "@/lib/services/workflow";
 import { requireUser } from "@/lib/auth/server";
 import { requireTenant } from "@/lib/tenant/context";
 import { tenantBaseUrl } from "@/lib/tenant/registry";
@@ -16,6 +17,7 @@ export const metadata = { title: "Lead forms" };
 
 export default async function LeadFormsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
   await requireUser();
+  await requireFeature("leadForms");
   const tenant = await requireTenant();
   const sp = await searchParams;
   const [forms, base, converted] = await Promise.all([

@@ -29,6 +29,7 @@ export default async function EditProfilePage({ params }: { params: Promise<{ id
         options={options}
         cancelHref={`/profiles/${profile.id}`}
         hiddenFields={await hiddenProfileFields()}
+        version={profile.updatedAt.toISOString()}
         submitLabel="Save changes"
       />
     </>

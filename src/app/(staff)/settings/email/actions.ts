@@ -23,6 +23,13 @@ export async function saveEmailSettings(fd: FormData) {
   const password = str(fd, "password").replace(/\s+/g, "");
   const advanced = fd.get("advanced") === "on";
   const port = Number(str(fd, "port") || 465);
+  if (advanced && process.env.NODE_ENV === "production") {
+    // Only real mail servers: a public name (with a dot, not an IP or internal name) on a mail port
+    const host = str(fd, "host").toLowerCase();
+    const looksInternal = !host.includes(".") || /^[\d.]+$/.test(host) || host.includes(":") || /(^|\.)(local|localhost|internal)$/.test(host);
+    if (host && looksInternal) back("Use your mail provider's server name, e.g. smtp.gmail.com", "error");
+    if (![25, 465, 587, 2525].includes(port)) back("The port must be 465, 587, 25 or 2525", "error");
+  }
 
   const next = {
     enabled: fd.get("enabled") === "on",

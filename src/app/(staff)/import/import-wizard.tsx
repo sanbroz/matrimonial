@@ -1,5 +1,6 @@
 "use client";
 
+import { formatHeight } from "@/lib/format";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { SECTIONS, inputName } from "@/lib/profile-fields";
@@ -172,7 +173,14 @@ export function ImportWizard() {
                       <td className="px-2 py-1">{String(c.profile.fullName ?? "")}</td>
                       <td className="px-2 py-1">{c.profile.gender === "MALE" ? "Groom" : c.profile.gender === "FEMALE" ? "Bride" : ""}</td>
                       <td className="px-2 py-1">{c.profile.dob instanceof Date ? c.profile.dob.toISOString().slice(0, 10) : ""}</td>
-                      <td className="px-2 py-1">{c.profile.heightCm ? `${c.profile.heightCm} cm` : ""}</td>
+                      <td className="px-2 py-1">
+                        {c.profile.heightCm ? (
+                          // Excel turns 5.10 (5' 10") into the number 5.1, which reads as 5' 1": make those stand out
+                          <span className={Math.round(Number(c.profile.heightCm) / 2.54) % 12 === 1 ? "rounded bg-amber-100 px-1 text-amber-900" : undefined} title={Math.round(Number(c.profile.heightCm) / 2.54) % 12 === 1 ? "Check: was it 10 inches? Excel stores 5.10 as 5.1" : undefined}>
+                            {formatHeight(Number(c.profile.heightCm))}
+                          </span>
+                        ) : ""}
+                      </td>
                       <td className="px-2 py-1">{String(c.profile.phone ?? "")}</td>
                       <td className="px-2 py-1 text-red-700">{c.errors.join("; ")}</td>
                     </tr>

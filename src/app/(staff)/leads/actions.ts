@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { SOURCE_LABELS } from "@/lib/lead-labels";
 import { prisma } from "@/lib/db";
 import { requireOwner, requireUser } from "@/lib/auth/server";
 import { ParseError, normalisePhone } from "@/lib/parse";
@@ -14,7 +15,7 @@ const leadSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   phone: z.string().trim().min(1, "Phone is required"),
   altPhone: z.string().trim().optional(),
-  source: z.enum(["PHONE", "WHATSAPP", "WALK_IN", "REFERRAL", "SOCIAL_MEDIA", "NEWSPAPER", "OTHER"]),
+  source: z.enum(Object.keys(SOURCE_LABELS) as [keyof typeof SOURCE_LABELS, ...(keyof typeof SOURCE_LABELS)[]]),
   forWhom: z.string().trim().optional(),
   gender: z.enum(["MALE", "FEMALE", ""]).optional(),
   city: z.string().trim().optional(),

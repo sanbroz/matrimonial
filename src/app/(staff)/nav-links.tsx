@@ -4,19 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cx } from "@/components/ui";
 
-const LINKS = [
+type Gate = "pipeline" | "payments" | "reports";
+const LINKS: { href: string; label: string; feature?: Gate; owner?: boolean }[] = [
   { href: "/", label: "Dashboard" },
   { href: "/leads", label: "Leads" },
   { href: "/profiles", label: "Profiles" },
-  { href: "/pipeline", label: "Pipeline" },
-  { href: "/payments", label: "Payments" },
+  { href: "/pipeline", label: "Pipeline", feature: "pipeline" },
+  { href: "/payments", label: "Payments", feature: "payments" },
+  { href: "/reports", label: "Reports", feature: "reports", owner: true },
+  { href: "/settings", label: "Settings", owner: true },
 ];
 
-const OWNER_LINKS = [{ href: "/settings", label: "Settings" }];
-
-export function NavLinks({ isOwner }: { isOwner: boolean }) {
+export function NavLinks({ isOwner, features }: { isOwner: boolean; features: Record<Gate, boolean> }) {
   const path = usePathname();
-  const links = isOwner ? [...LINKS, ...OWNER_LINKS] : LINKS;
+  const links = LINKS.filter((l) => (!l.owner || isOwner) && (!l.feature || features[l.feature]));
   return (
     // Phones: wraps onto a second line (nothing hidden off-screen). Desktop: a column.
     <nav className="flex flex-wrap gap-1 px-2 pb-2 md:flex-col md:flex-nowrap md:px-3">

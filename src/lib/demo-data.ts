@@ -315,6 +315,7 @@ export async function deleteDemoData(db: PrismaClient) {
       const leads = await tx.lead.deleteMany({ where: { OR: [{ isDemo: true }, { profileId: { in: ids } }] } });
       const profiles = await tx.profile.deleteMany({ where: { id: { in: ids } } });
       const plans = await tx.plan.deleteMany({ where: { isDemo: true, memberships: { none: {} } } });
+      await tx.plan.updateMany({ where: { isDemo: true }, data: { isDemo: false } }); // still used by real memberships
       // A bureau that only had demo data starts its numbering again from the beginning
       const [profilesLeft, paymentsLeft] = await Promise.all([tx.profile.count(), tx.payment.count()]);
       await tx.settings.update({

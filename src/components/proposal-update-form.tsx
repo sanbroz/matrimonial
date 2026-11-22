@@ -36,7 +36,7 @@ function StageForm({ id, status, trackMeetings = true }: Props) {
       <SubmitButton>{next === status ? "Add note" : "Save"}</SubmitButton>
       {next === "MEETING_SCHEDULED" && (
         <Field label="Meeting date & time" hint="A follow-up is added for the day after" className="@xl:col-span-2">
-          <input type="datetime-local" name="meetingAt" className={inputClass + " @xl:w-64!"} />
+          <input type="datetime-local" name="meetingAt" required className={inputClass + " @xl:w-64!"} />
         </Field>
       )}
       {next === "DECLINED" && (

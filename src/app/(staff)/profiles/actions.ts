@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { requireOwner, requireUser } from "@/lib/auth/server";
 import { parseProfileValues } from "@/lib/profile-fields";
 import { formDataToValues, type FormValues } from "@/lib/profile-form-values";
-import { createProfile, findProfileByPhone } from "@/lib/services/profiles";
+import { changedSince, createProfile, findProfileByPhone } from "@/lib/services/profiles";
 import { DOC_TYPES, IMAGE_TYPES, UploadError, deleteUpload, saveUpload } from "@/lib/storage";
 
 export type ProfileFormState = {
@@ -17,6 +17,8 @@ export type ProfileFormState = {
   ts?: number;
   /** The family's self-fill form was saved */
   saved?: boolean;
+  /** The profile's version after a save (so the next save from the same form isn't a "conflict") */
+  version?: string;
 };
 
 const STATUS = z.enum(["ACTIVE", "ON_HOLD", "MATCHED", "CLOSED"]);
@@ -70,6 +72,16 @@ export async function updateProfileAction(id: string, _prev: ProfileFormState, f
   }
   const existing = await prisma.profile.findUnique({ where: { id }, select: { consentGiven: true, consentAt: true } });
   if (!existing) return { message: "Profile not found." };
+  if (await changedSince(id, fd)) return { message: "This profile was changed by someone else (or by the family) while it was open here. Open it again to see the latest details, then make your changes.", values, ts: Date.now() };
+  const dup = parsed.profile.phone ? await findProfileByPhone(parsed.profile.phone as string, id) : null;
+  if (dup && fd.get("allowDuplicate") !== "on") {
+    return {
+      errors: { phone: `This phone is already on profile ${dup.code} (${dup.fullName}).` },
+      message: `Possible duplicate of ${dup.code}. Tick "Save anyway" to keep it.`,
+      values: { ...values, showAllowDuplicate: true },
+      ts: Date.now(),
+    };
+  }
 
   await prisma.profile.update({
     where: { id },

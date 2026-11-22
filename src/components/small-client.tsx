@@ -40,7 +40,16 @@ export function CopyButton({ text, label = "Copy link" }: { text: string; label?
  * Sticky bar for check-box selections (profiles list, suggested matches). The check boxes belong to
  * the GET form with this id (form attribute), so submitting opens /share?id=…&id=….
  */
-export function SelectionBar({ formId, label }: { formId: string; label: string }) {
+export function SelectionBar({
+  formId,
+  label,
+  second,
+}: {
+  formId: string;
+  label: string;
+  /** Another action on the same selection (a server action) */
+  second?: { label: string; action: (fd: FormData) => Promise<void> };
+}) {
   const [count, setCount] = useState(0);
   useEffect(() => {
     const update = () => setCount(document.querySelectorAll(`input[type=checkbox][form="${formId}"][name=id]:checked`).length);
@@ -53,6 +62,9 @@ export function SelectionBar({ formId, label }: { formId: string; label: string 
     <div className="sticky bottom-3 z-20 mx-auto mt-4 flex w-fit items-center gap-3 rounded-full border border-zinc-200 bg-white px-4 py-2 shadow-lg">
       <span className="text-sm font-medium">{count} selected</span>
       <button type="submit" form={formId} className={buttonClass.primary}>{label}</button>
+      {second && (
+        <button type="submit" form={formId} formAction={second.action} className={buttonClass.secondary}>{second.label}</button>
+      )}
       <button
         type="button"
         className={buttonClass.ghost}

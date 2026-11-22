@@ -1,3 +1,4 @@
+import { requireFeature } from "@/lib/services/workflow";
 import { requireOwner } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { readEmailConfig, readSummaryOptions } from "@/lib/email-config";
@@ -11,6 +12,7 @@ export const metadata = { title: "Email settings" };
 
 export default async function EmailSettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
   const me = await requireOwner();
+  await requireFeature("email");
   const sp = await searchParams;
   const [s, recent] = await Promise.all([
     prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { emailConfig: true, summaryOptions: true, lastSummaryDate: true, updatedAt: true } }),

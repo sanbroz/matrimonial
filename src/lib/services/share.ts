@@ -5,6 +5,7 @@ import { buildBiodata, type BiodataContent } from "@/lib/biodata";
 import { readBiodataOptions, type BiodataOptions } from "@/lib/biodata-options";
 import { nowIST } from "@/lib/format";
 import { MAX_SHARE_PROFILES, type ShareOptions } from "@/lib/share";
+import { readFeatures } from "@/lib/features";
 
 export interface ShareItem {
   id: string;
@@ -37,7 +38,9 @@ export async function loadShareItems(ids: string[], opts: ShareOptions) {
     prisma.settings.findUniqueOrThrow({ where: { id: 1 } }),
   ]);
   const base = readBiodataOptions(settings.biodataOptions);
-  const biodataOpts: BiodataOptions = { ...base, sections: opts.sections, showName: opts.nameMode };
+  const features = readFeatures(settings.features);
+  const sections = features.horoscope ? opts.sections : opts.sections.filter((s) => s !== "horoscope");
+  const biodataOpts: BiodataOptions = { ...base, sections, showName: opts.nameMode };
   const byId = new Map(profiles.map((p) => [p.id, p]));
   const now = nowIST();
   const withPhotos = opts.sections.includes("photo");

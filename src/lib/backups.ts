@@ -56,6 +56,11 @@ export async function restoreTenantBackup(t: Pick<TenantInfo, "slug" | "schema">
   return r.safety;
 }
 
+/** Bureau deleted: its backups move to the platform's archive, so a new bureau on the same subdomain never sees them. */
+export async function archiveTenantBackups(slug: string): Promise<void> {
+  await json(await call(`/t/${slug}/archive`, { method: "POST", body: "{}" }, 60_000));
+}
+
 /** A password-protected .7z copy of one backup, streamed from the backup service. */
 export async function exportTenantBackup(slug: string, file: string, password: string): Promise<Response> {
   const r = await call(`/t/${slug}/export`, { method: "POST", body: JSON.stringify({ file, password }) });

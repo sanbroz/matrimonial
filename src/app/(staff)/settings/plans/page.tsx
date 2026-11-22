@@ -1,4 +1,5 @@
 import type { Plan } from "@prisma/client";
+import { requireFeature } from "@/lib/services/workflow";
 import { requireOwner } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
@@ -11,6 +12,7 @@ export const metadata = { title: "Membership plans" };
 
 export default async function PlansPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
   await requireOwner();
+  await requireFeature("payments");
   const sp = await searchParams;
   const [plans, settings] = await Promise.all([
     prisma.plan.findMany({ orderBy: [{ active: "desc" }, { price: "asc" }] }),

@@ -3,7 +3,7 @@ import { mkdir, rm } from "node:fs/promises";
 import { platform } from "@/lib/platform-db";
 import { clientForSchema, dropClient } from "@/lib/db";
 import { uploadsRootFor } from "@/lib/storage";
-import { backupsConfigured, takeTenantBackup } from "@/lib/backups";
+import { archiveTenantBackups, backupsConfigured, listTenantBackups, takeTenantBackup } from "@/lib/backups";
 import { dropSchema, migrateSchema, schemaExists } from "@/lib/tenant/migrate";
 import { schemaForSlug, slugError } from "@/lib/tenant/host";
 import { invalidateTenantCache } from "@/lib/tenant/registry";
@@ -28,6 +28,10 @@ export async function createTenant(input: {
   if (await platform.tenant.findUnique({ where: { slug } })) throw new TenantError(`"${slug}" is already used by another bureau.`);
   const schema = schemaForSlug(slug);
   if (await schemaExists(schema)) throw new TenantError(`Database section ${schema} already exists. Choose another subdomain.`);
+  // Never let a new bureau see backups left under this subdomain
+  if (backupsConfigured && (await listTenantBackups(slug).catch(() => [])).length > 0) {
+    throw new TenantError(`Old backups still exist for "${slug}". Choose another subdomain.`);
+  }
 
   try {
     await migrateSchema(schema);
@@ -50,7 +54,10 @@ export async function deleteTenant(id: string) {
   const t = await platform.tenant.findUnique({ where: { id } });
   if (!t) return null;
   let finalBackup: string | null = null;
-  if (backupsConfigured) finalBackup = await takeTenantBackup(t, "final");
+  if (backupsConfigured) {
+    finalBackup = await takeTenantBackup(t, "final");
+    await archiveTenantBackups(t.slug); // the final one included; fails the delete if it can't
+  }
   // Unregister first so the subdomain stops answering at once
   await platform.tenant.delete({ where: { id } });
   invalidateTenantCache();

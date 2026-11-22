@@ -101,3 +101,11 @@ export async function loadOptions(): Promise<Record<string, string[]>> {
   for (const i of items) (out[i.category] ??= []).push(i.value);
   return out;
 }
+
+/** True when the profile changed since a form was opened (the form's hidden "_version" = updatedAt). */
+export async function changedSince(id: string, fd: FormData) {
+  const v = String(fd.get("_version") ?? "");
+  if (!v) return false;
+  const p = await prisma.profile.findUnique({ where: { id }, select: { updatedAt: true } });
+  return !!p && p.updatedAt.toISOString() !== v;
+}

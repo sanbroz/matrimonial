@@ -149,11 +149,14 @@ export function parseMaritalStatus(raw: unknown): MaritalStatusValue | null {
   throw new ParseError(`"${clean(raw)}" is not a marital status`);
 }
 
-/** Comma / semicolon / slash separated list → trimmed unique values. */
+/**
+ * Comma / semicolon / pipe separated list → trimmed unique values. Not slashes: options such as
+ * "Bania / Aggarwal" or "B.Tech / B.E." are one value.
+ */
 export function parseList(raw: unknown): string[] {
   const s = clean(raw);
   if (s === "") return [];
-  return [...new Set(s.split(/[,;\/|]/).map((x) => x.trim()).filter(Boolean))];
+  return [...new Set(s.split(/[,;|]/).map((x) => x.trim()).filter(Boolean))];
 }
 
 /** Indian phone numbers: keep digits and a leading +, strip a 0/91 prefix for matching. */

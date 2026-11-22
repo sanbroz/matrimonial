@@ -22,12 +22,12 @@ export async function loginAction(_prev: { error?: string; email?: string } | un
 
   const ip = await clientIp();
   const key = `${tenant.id}:${email}`; // limits are per bureau
-  const wait = Math.max(loginLimits.email.blockedFor(key), loginLimits.ip.blockedFor(ip));
+  const wait = Math.max(loginLimits.email.blockedFor(key), loginLimits.ip.blockedFor(`${tenant.id}:${ip}`));
   if (wait > 0) return { error: `Too many failed attempts. Try again in ${Math.ceil(wait / 60000)} minutes.`, email };
   // Count the attempt BEFORE checking the password, so many parallel attempts can't all slip
   // through while the (slow) password check runs. Taken back below if it succeeds.
   loginLimits.email.fail(key);
-  loginLimits.ip.fail(ip);
+  loginLimits.ip.fail(`${tenant.id}:${ip}`);
 
   const user = await prisma.user.findUnique({ where: { email } });
   const passwordOk = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
@@ -35,7 +35,7 @@ export async function loginAction(_prev: { error?: string; email?: string } | un
     return { error: "Wrong email or password.", email };
   }
   loginLimits.email.reset(key);
-  loginLimits.ip.undo(ip);
+  loginLimits.ip.undo(`${tenant.id}:${ip}`);
 
   await setSessionCookie(user);
   redirect("/");

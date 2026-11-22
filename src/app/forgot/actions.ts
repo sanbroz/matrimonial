@@ -64,6 +64,7 @@ export async function resetPassword(token: string, _prev: { error?: string } | u
   if (password.length < 8) return { error: "Use at least 8 characters." };
   if (password !== confirm) return { error: "The two passwords don't match." };
 
+  if ((await requireTenant()).status === "SUSPENDED") return { error: "This CRM is paused. Please contact your service provider." };
   const row = await prisma.passwordResetToken.findUnique({ where: { tokenHash: hash(token) }, include: { user: true } });
   if (!row || row.usedAt || row.expiresAt < new Date() || !row.user.active) {
     return { error: "This link has expired or was already used. Ask for a new one." };

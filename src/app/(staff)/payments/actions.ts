@@ -56,6 +56,7 @@ export async function startMembership(fd: FormData) {
   if (Number.isNaN(price) || Number.isNaN(payNow) || Number.isNaN(successFee)) back(profileId, "Amounts must be numbers", "error");
   if (payNow > price) back(profileId, "Payment is more than the plan price", "error");
   if (price === 0 && payNow > 0) back(profileId, "The price is ₹0, so there is nothing to receive", "error");
+  if (user.role !== "OWNER" && price < plan!.price) back(profileId, `Only the owner can give a lower price than the plan (${plan!.price})`, "error");
   let start: Date;
   try {
     start = parseDateLoose(str(fd, "startDate")) ?? todayIST();

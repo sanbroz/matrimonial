@@ -59,7 +59,7 @@ export function checkEnquiry(i: EnquiryInput): EnquiryCheck {
   const phone = cleanEnquiryPhone(i.phone);
   if (!phone) return { ok: false, error: "Please enter a valid mobile number (10 digits, or with + and country code).", field: "phone" };
   if (!i.consent) return { ok: false, error: "Please tick the box so we may contact you.", field: "consent" };
-  const fw = i.forWhom in FOR_WHOM ? FOR_WHOM[i.forWhom as ForWhom] : null;
+  const fw = Object.hasOwn(FOR_WHOM, i.forWhom) ? FOR_WHOM[i.forWhom as ForWhom] : null;
   return {
     ok: true,
     name,

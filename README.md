@@ -109,6 +109,30 @@ and `/api/health` is there for uptime monitoring.
 - Message texts are editable in Settings → Message templates. Every message is logged on the profile.
 - Setup steps: DEPLOY.md, "Email and WhatsApp".
 
+## Simple to advanced, search and reports (v2.7)
+
+- **Settings → Features:** each bureau chooses how much of the CRM it uses. Start from a preset, then change single switches:
+  - **Simple:** leads, profiles, matches and sharing (share links and WhatsApp)
+  - **Standard:** adds payments, the pipeline, horoscope, email and reports
+  - **Advanced:** everything, including meetings and lead forms
+  - Switches: payments, pipeline, horoscope / kundli, lead forms, share links, WhatsApp, email, reports, meetings
+  - Switched-off parts leave the menus, the dashboard, settings and the daily email. Their data is kept.
+- **Getting started:** a checklist on the dashboard of a new bureau. It can be hidden.
+- **Search** box in the sidebar: profile code, name, father's name, city or phone, plus leads.
+- **Reports** (owner): the last 12 months of enquiries, new profiles, biodatas shared, matches and money collected, with where enquiries come from and how each lead form does.
+- **Excel export** (owner) of all profiles and leads.
+- **Shortlist:** star candidates on a family's suggested matches, then share all the shortlisted at once.
+- **Send this biodata to them:** tick candidates and record the profile's biodata as sent to those families (the reverse direction).
+- **Matched couples:** every match made, with the wedding date and a note (your success stories).
+- **Birthdays this week** on the dashboard.
+- **Safer everyday work:**
+  - Matching a couple closes their other open proposals.
+  - Two people editing the same profile (or the family's self-fill link) no longer overwrite each other; the second save is refused with a clear message.
+  - Updating a profile warns about a duplicate phone.
+  - Values like "Bania/Aggarwal" import as one caste.
+  - A deleted bureau's backups are archived, never reused.
+  - A lost lead that enquires again is reopened.
+
 ## Lead forms for websites and campaigns (v2.6)
 
 - **Leads → Lead forms:** a separate public enquiry link for each place you advertise: website, email footer, WhatsApp, Facebook, Instagram, an ad campaign.
@@ -132,7 +156,7 @@ and `/api/health` is there for uptime monitoring.
 - **Dashboard:**
   - five numbers to act on: profiles to share matches with, families to call back, leads to call, dues outstanding and (for the owner) collected this month
   - **Profiles with matches to share**: active profiles with suggested matches not yet sent, urgent and longest-waiting first, each with a Share button
-- **Settings → Bureau → How you work:** untick "We arrange meetings between families" if the bureau only shares profiles. Proposals then go Shared → Interested / Declined → Matched, with no meeting stages, dates or reminders. The daily email skips meetings too.
+- **Settings → Features (since v2.7):** untick "We arrange meetings between families" if the bureau only shares profiles. Proposals then go Shared → Interested / Declined → Matched, with no meeting stages, dates or reminders. The daily email skips meetings too.
 - Import from Excel moved to the Profiles page; settings tabs have short names.
 
 ## Sharing several profiles (v2.2)

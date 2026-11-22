@@ -1,5 +1,6 @@
 "use server";
 
+import { clearPendingMatchesCache } from "@/lib/services/matching";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -27,15 +28,19 @@ async function recordShared(clientId: string, candidateIds: string[], userId: st
     if (existing) {
       await prisma.proposalEvent.create({ data: { proposalId: existing.id, status: existing.status, note: `${note} again`, userId } });
     } else {
-      await prisma.proposal.create({
-        data: { fromProfileId: client.id, toProfileId: c.id, createdById: userId, events: { create: { status: "SHARED", userId, note } } },
+      const p = await prisma.proposal.upsert({
+        where: { fromProfileId_toProfileId: { fromProfileId: client.id, toProfileId: c.id } },
+        update: {},
+        create: { fromProfileId: client.id, toProfileId: c.id, createdById: userId },
       });
+      await prisma.proposalEvent.create({ data: { proposalId: p.id, status: "SHARED", userId, note } });
       created++;
     }
     revalidatePath(`/profiles/${c.id}`);
   }
   revalidatePath(`/profiles/${client.id}`);
   revalidatePath(`/profiles/${client.id}/matches`);
+  await clearPendingMatchesCache();
   return created;
 }
 

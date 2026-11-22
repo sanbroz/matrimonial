@@ -1,5 +1,6 @@
 "use server";
 
+import { clearPendingMatchesCache } from "@/lib/services/matching";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -32,6 +33,7 @@ export async function shareMatch(fd: FormData) {
       events: { create: { status: "SHARED", userId: user.id, note: "Biodata shared" } },
     },
   });
+  await clearPendingMatchesCache();
   const back = String(fd.get("returnTo") ?? "");
   if (back.startsWith("/profiles/")) {
     revalidatePath(back.split("?")[0]);
@@ -103,8 +105,10 @@ export async function updateProposalStatus(fd: FormData) {
     include: { fromProfile: { select: { code: true } }, toProfile: { select: { code: true } } },
   });
   if (!current) return;
-  const changed = current.status !== status;
-  if (!changed && !note && !meetingAt) return;
+  if (status === "MEETING_SCHEDULED" && !meetingAt && !current.meetingAt) {
+    throw new Error("Please give the meeting date and time");
+  }
+  if (current.status === status && !note && !meetingAt) return; // nothing to save
 
   const details = [
     status === "MEETING_SCHEDULED" && meetingAt ? `Meeting: ${formatDateTime(meetingAt)}` : null,
@@ -113,6 +117,10 @@ export async function updateProposalStatus(fd: FormData) {
   ].filter(Boolean).join(" · ") || null;
 
   await prisma.$transaction(async (tx) => {
+    // Lock the proposal and re-read its stage, so two simultaneous "Matched" saves can't bill twice
+    await tx.$queryRaw`SELECT id FROM "Proposal" WHERE id = ${id} FOR UPDATE`;
+    const fresh = await tx.proposal.findUniqueOrThrow({ where: { id }, select: { status: true } });
+    const changed = fresh.status !== status;
     await tx.proposal.update({
       where: { id },
       data: {
@@ -140,6 +148,27 @@ export async function updateProposalStatus(fd: FormData) {
     const becameMatched = changed && status === "MATCHED";
     if (becameMatched && fd.get("markProfiles") === "on") {
       await tx.profile.updateMany({ where: { id: { in: [current.fromProfileId, current.toProfileId] } }, data: { status: "MATCHED" } });
+      // Their other open proposals are over: close them so nobody keeps calling about them
+      const pair = [current.fromProfileId, current.toProfileId];
+      const others = await tx.proposal.findMany({
+        where: {
+          id: { not: id },
+          status: { in: ["SHARED", "INTERESTED", "MEETING_SCHEDULED", "MET"] },
+          OR: [{ fromProfileId: { in: pair } }, { toProfileId: { in: pair } }],
+        },
+        select: { id: true },
+      });
+      if (others.length) {
+        await tx.proposal.updateMany({ where: { id: { in: others.map((o) => o.id) } }, data: { status: "DROPPED" } });
+        await tx.proposalEvent.createMany({
+          data: others.map((o) => ({
+            proposalId: o.id,
+            status: "DROPPED" as const,
+            note: `Closed: ${current.fromProfile.code} and ${current.toProfile.code} are matched`,
+            userId: user.id,
+          })),
+        });
+      }
     }
     if (becameMatched && fd.get("successFees") === "on") {
       const billed = await createSuccessFeeDues(tx, id);
@@ -168,4 +197,45 @@ export async function removeProposal(fd: FormData) {
   revalidatePath(`/profiles/${p.fromProfileId}`);
   revalidatePath(`/profiles/${p.fromProfileId}/matches`);
   revalidatePath(`/profiles/${p.toProfileId}`);
+}
+
+/** Star / unstar a suggested profile for this family (Shortlist). */
+export async function toggleShortlist(fd: FormData) {
+  const user = await requireUser();
+  const clientId = z.string().parse(fd.get("clientId"));
+  const candidateId = z.string().parse(fd.get("candidateId"));
+  const existing = await prisma.shortlist.findUnique({ where: { clientId_candidateId: { clientId, candidateId } } });
+  if (existing) await prisma.shortlist.delete({ where: { id: existing.id } });
+  else {
+    const both = await prisma.profile.count({ where: { id: { in: [clientId, candidateId] } } });
+    if (both === 2) await prisma.shortlist.create({ data: { clientId, candidateId, createdById: user.id } });
+  }
+  revalidatePath(`/profiles/${clientId}/matches`);
+  revalidatePath(`/profiles/${clientId}`);
+}
+
+/**
+ * The other direction: this profile's biodata goes to the selected families (e.g. a new profile that
+ * suits several existing clients). Records "shared" from each family, then opens the share page.
+ */
+export async function sendToFamilies(fd: FormData) {
+  const user = await requireUser();
+  const profileId = z.string().parse(fd.get("for"));
+  const familyIds = [...new Set(fd.getAll("id").map(String))].slice(0, 100);
+  const profile = await prisma.profile.findUnique({ where: { id: profileId }, select: { id: true, gender: true, code: true } });
+  if (!profile || !familyIds.length) redirect(`/profiles/${profileId}/matches`);
+  const families = await prisma.profile.findMany({ where: { id: { in: familyIds }, gender: { not: profile!.gender } }, select: { id: true } });
+  let created = 0;
+  for (const f of families) {
+    const exists = await prisma.proposal.findUnique({ where: { fromProfileId_toProfileId: { fromProfileId: f.id, toProfileId: profileId } } });
+    if (exists) continue;
+    await prisma.proposal.create({
+      data: { fromProfileId: f.id, toProfileId: profileId, createdById: user.id, events: { create: { status: "SHARED", userId: user.id, note: `Biodata of ${profile!.code} sent` } } },
+    });
+    created++;
+  }
+  revalidatePath(`/profiles/${profileId}`);
+  revalidatePath(`/profiles/${profileId}/matches`);
+  await clearPendingMatchesCache();
+  redirect(`/share?id=${profileId}&ok=${encodeURIComponent(`Recorded: ${profile!.code}'s biodata sent to ${created} famil${created === 1 ? "y" : "ies"}. Download or send it below.`)}`);
 }

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
 import { Badge, ButtonLink, EmptyState, PageHeader, buttonClass, cx, inputClass } from "@/components/ui";
 import { SOURCE_LABELS } from "@/lib/lead-labels";
+import { bureauFeatures } from "@/lib/services/workflow";
 
 export const metadata = { title: "Leads" };
 
@@ -21,6 +22,7 @@ const TONE = { NEW: "blue", FOLLOW_UP: "amber", CONVERTED: "green", LOST: "zinc"
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; form?: string }> }) {
   await requireUser();
   const sp = await searchParams;
+  const features = await bureauFeatures();
   const status = (STATUS_TABS.find((t) => t.value === sp.status)?.value ?? "OPEN") as (typeof STATUS_TABS)[number]["value"];
   const where: Prisma.LeadWhereInput = {};
   const formFilter = sp.form ? await prisma.leadForm.findUnique({ where: { id: sp.form }, select: { id: true, name: true } }) : null;
@@ -55,7 +57,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         subtitle="Enquiries that have not registered yet"
         actions={
           <>
-            <ButtonLink href="/leads/forms">Lead forms</ButtonLink>
+            {features.leadForms && <ButtonLink href="/leads/forms">Lead forms</ButtonLink>}
             <ButtonLink href="/leads/new" variant="primary">Add lead</ButtonLink>
           </>
         }

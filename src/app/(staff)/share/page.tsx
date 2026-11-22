@@ -21,6 +21,7 @@ import { ShareExport } from "@/components/share-export";
 import { SendMessageButton } from "@/components/send-message";
 import { AutoSubmit, CopyButton } from "@/components/small-client";
 import { createShareLink, recordSharesAction, revokeShareLink, sendShare } from "./actions";
+import { bureauFeatures } from "@/lib/services/workflow";
 
 export const metadata = { title: "Share profiles" };
 
@@ -31,6 +32,7 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
   await requireUser();
   const tenant = await requireTenant();
   const sp = await searchParams;
+  const features = await bureauFeatures();
   const ids = [...new Set(arr(sp.id))].slice(0, MAX_SHARE_PROFILES);
   if (!ids.length) {
     return (
@@ -206,7 +208,7 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
               <p className="mt-2 text-xs text-zinc-500">{pages} A4 page{pages === 1 ? "" : "s"}.</p>
             </Card>
 
-            <Card title="Share link">
+            {features.shareLinks && <Card title="Share link">
               {linkUrl && link ? (
                 <div className="space-y-2">
                   <div className="break-all rounded-md bg-emerald-50 p-2 text-sm text-emerald-900">{linkUrl}</div>
@@ -221,7 +223,7 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
                   </div>
                   <p className="text-xs text-zinc-500">Works until {validTill} ({formatDateTime(link.expiresAt)}). Anyone with the link can view it, without signing in.</p>
                   <div className="flex flex-wrap gap-2 border-t border-zinc-100 pt-2">
-                    <SendMessageButton
+                    {features.whatsapp && <SendMessageButton
                       channel="whatsapp"
                       label="Send link on WhatsApp"
                       title={`Send ${items.length} profiles on WhatsApp`}
@@ -230,8 +232,8 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
                       defaultText={renderTemplate(ctx.templates.shareWhatsApp, vars)}
                       fields={{ ...sendFields, channel: "whatsapp" }}
                       disabledReason={whatsappConfigured ? null : "WhatsApp is available on the production server"}
-                    />
-                    <SendMessageButton
+                    />}
+                    {features.email && <SendMessageButton
                       channel="email"
                       label="Email link + PDF"
                       title={`Email ${items.length} profiles`}
@@ -242,7 +244,7 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
                       fields={{ ...sendFields, channel: "email" }}
                       attach={{ elementId: Array.from({ length: pages }, (_, i) => `share-page-${i}`), as: "pdf", filename: `${filename}.pdf` }}
                       disabledReason={emailReady ? null : "Set up email first (Settings → Email)"}
-                    />
+                    />}
                   </div>
                 </div>
               ) : (
@@ -272,9 +274,9 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
                   <SubmitButton pendingText="Creating…">Create share link</SubmitButton>
                 </form>
               )}
-            </Card>
+            </Card>}
 
-            {client && !linkUrl && (
+            {client && (!linkUrl || !features.shareLinks) && (
               <Card title={`Sent another way?`}>
                 <form action={recordSharesAction} className="flex flex-wrap items-center gap-2 text-sm">
                   {keep}

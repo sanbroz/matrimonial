@@ -12,6 +12,7 @@ import { OPTION_CATEGORIES } from "@/lib/options-defaults";
 import { matchingOptionsSchema } from "@/lib/matching";
 import { MAX_FAVICON_BYTES, faviconType } from "@/lib/favicon";
 import { LOCKED_FIELDS, PROFILE_FIELDS, inputName } from "@/lib/profile-fields";
+import { FEATURES, PRESETS as FEATURE_PRESETS, type Feature } from "@/lib/features";
 import { setSessionCookie } from "@/lib/auth/cookie";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -46,7 +47,6 @@ export async function saveBureauSettings(fd: FormData) {
       profileCodePrefix: prefix,
       ...(counterEdited ? { nextProfileNumber: nextNum } : {}),
       registrationFee: money(fd, "registrationFee"),
-      trackMeetings: fd.get("trackMeetings") === "on",
       paymentUpi: optStr(fd, "paymentUpi"),
       paymentBank: optStr(fd, "paymentBank"),
       paymentNote: optStr(fd, "paymentNote"),
@@ -255,4 +255,23 @@ export async function saveFieldSettings(fd: FormData) {
   await prisma.settings.update({ where: { id: 1 }, data: { hiddenFields: hidden } });
   revalidatePath("/", "layout");
   back("/settings/fields", hidden.length ? `Saved. ${hidden.length} field${hidden.length === 1 ? "" : "s"} switched off.` : "Saved. All fields are in use.");
+}
+
+// ───────────── Features ─────────────
+
+export async function saveFeatures(fd: FormData) {
+  await requireOwner();
+  const features = Object.fromEntries((Object.keys(FEATURES) as Feature[]).map((k) => [k, fd.get(k) === "on"]));
+  await prisma.settings.update({ where: { id: 1 }, data: { features, trackMeetings: fd.get("trackMeetings") === "on" } });
+  revalidatePath("/", "layout");
+  back("/settings/features", "Saved");
+}
+
+export async function applyFeaturePreset(fd: FormData) {
+  await requireOwner();
+  const p = FEATURE_PRESETS[String(fd.get("preset"))];
+  if (!p) back("/settings/features", "Unknown setup", "error");
+  await prisma.settings.update({ where: { id: 1 }, data: { features: p.features, trackMeetings: p.meetings } });
+  revalidatePath("/", "layout");
+  back("/settings/features", `${p.label} setup in use`);
 }

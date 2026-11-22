@@ -8,7 +8,7 @@ import { ageFrom, formatHeight } from "@/lib/format";
 import { MARITAL_LABELS } from "@/lib/profile-fields";
 import { Alert, Badge, ButtonLink, Card, EmptyState, PageHeader, cx } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
-import { shareMatch } from "./actions";
+import { sendToFamilies, shareMatch, toggleShortlist } from "./actions";
 import { SelectionBar } from "@/components/small-client";
 
 export const metadata = { title: "Suggested matches" };
@@ -16,10 +16,10 @@ export const metadata = { title: "Suggested matches" };
 const SHOW = 60;
 const GOTRA_RULE = { all: "all recorded gotras (self, mother, dadi)", self: "own gotra only", off: "off" } as const;
 
-export default async function MatchesPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ all?: string }> }) {
+export default async function MatchesPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ all?: string; view?: string }> }) {
   const user = await requireUser();
   const { id } = await params;
-  const { all } = await searchParams;
+  const { all, view } = await searchParams;
   const client = await prisma.profile.findUnique({
     where: { id },
     select: { id: true, code: true, fullName: true, gender: true, status: true, preference: { select: { id: true } } },
@@ -28,7 +28,13 @@ export default async function MatchesPage({ params, searchParams }: { params: Pr
   const result = await suggestMatches(id);
   if (!result) notFound();
 
-  const shown = all ? result.suggested : result.suggested.slice(0, SHOW);
+  const starred = new Set(
+    (await prisma.shortlist.findMany({ where: { clientId: id }, select: { candidateId: true } })).map((x) => x.candidateId),
+  );
+  const shortlisted = result.suggested.filter((s) => starred.has(s.candidateId));
+  const onlyShortlist = view === "shortlist";
+  const pool = onlyShortlist ? shortlisted : result.suggested;
+  const shown = all || onlyShortlist ? pool : pool.slice(0, SHOW);
   const ids = [...shown.map((s) => s.candidateId), ...result.excluded.map((e) => e.candidateId)];
   const details = await prisma.profile.findMany({
     where: { id: { in: ids } },
@@ -73,14 +79,29 @@ export default async function MatchesPage({ params, searchParams }: { params: Pr
         </p>
       </div>
 
-      {shown.length === 0 ? (
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="inline-flex overflow-hidden rounded-md border border-zinc-300 text-sm">
+          <Link href="?" className={cx("px-3 py-1.5", !onlyShortlist ? "bg-brand-600 text-white" : "bg-white")}>All suggestions ({result.suggested.length})</Link>
+          <Link href="?view=shortlist" className={cx("px-3 py-1.5", onlyShortlist ? "bg-brand-600 text-white" : "bg-white")}>☆ Shortlisted ({shortlisted.length})</Link>
+        </div>
+        {shortlisted.length > 0 && (
+          <ButtonLink href={`/share?for=${client.id}&${shortlisted.map((x) => `id=${x.candidateId}`).join("&")}`} variant="primary">
+            Share the {shortlisted.length} shortlisted
+          </ButtonLink>
+        )}
+      </div>
+
+      {shown.length === 0 && onlyShortlist ? (
+        <EmptyState>Nothing shortlisted yet. Tap ☆ on a suggestion to keep it aside for this family.</EmptyState>
+      ) : shown.length === 0 ? (
         <EmptyState>No suitable profiles right now. Check the ruled-out list below, or loosen the client&apos;s preferences.</EmptyState>
       ) : (
         <>
         {/* Tick several and share them together (one PDF / link) */}
         <form id="share-select" action="/share" className="mb-2 text-xs text-zinc-500">
           <input type="hidden" name="for" value={client.id} />
-          Tick profiles to share several together (one PDF, images or a link).
+          Tick profiles to share them with {client.code}&apos;s family together (one PDF, images or a link), or to send {client.code}&apos;s
+          biodata to those families.
         </form>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {shown.map((s) => {
@@ -109,7 +130,20 @@ export default async function MatchesPage({ params, searchParams }: { params: Pr
                         <span className="font-mono text-xs text-brand-700">{d.code}</span>
                         <span className="block truncate font-medium">{d.fullName}</span>
                       </Link>
-                      <ScoreBadge score={s.score} />
+                      <span className="flex shrink-0 items-center gap-1">
+                        <form action={toggleShortlist}>
+                          <input type="hidden" name="clientId" value={client.id} />
+                          <input type="hidden" name="candidateId" value={d.id} />
+                          <button
+                            title={starred.has(d.id) ? "Remove from shortlist" : "Shortlist for this family"}
+                            aria-label={starred.has(d.id) ? `Remove ${d.code} from shortlist` : `Shortlist ${d.code}`}
+                            className={cx("rounded-full px-1.5 text-lg leading-none", starred.has(d.id) ? "text-amber-500" : "text-zinc-300 hover:text-amber-500")}
+                          >
+                            {starred.has(d.id) ? "★" : "☆"}
+                          </button>
+                        </form>
+                        <ScoreBadge score={s.score} />
+                      </span>
                     </div>
                     <p className="mt-1 text-xs text-zinc-600">
                       {[
@@ -142,7 +176,11 @@ export default async function MatchesPage({ params, searchParams }: { params: Pr
             );
           })}
         </div>
-        <SelectionBar formId="share-select" label={`Share with ${client.code}`} />
+        <SelectionBar
+          formId="share-select"
+          label={`Share with ${client.code}`}
+          second={{ label: `Send ${client.code}'s biodata to them`, action: sendToFamilies }}
+        />
         </>
       )}
       {!all && result.suggested.length > SHOW && (

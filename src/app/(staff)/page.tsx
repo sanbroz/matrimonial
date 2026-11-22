@@ -7,24 +7,28 @@ import { fileUrl } from "@/lib/storage";
 import { FollowUpDoneButton } from "@/components/follow-up-done";
 import { needsAttention } from "@/lib/proposal-labels";
 import { collections, currentMonth, openDues, renewalsDue } from "@/lib/services/reports";
-import { pendingMatches } from "@/lib/services/matching";
+import { pendingMatches, upcomingBirthdays } from "@/lib/services/matching";
 import { rupees } from "@/lib/money";
 import { getWhatsAppStatus } from "@/lib/services/whatsapp";
 import { currentDemoCounts } from "@/lib/services/demo";
+import { bureauFeatures } from "@/lib/services/workflow";
+import { GettingStarted } from "@/components/getting-started";
 
 export const metadata = { title: "Dashboard" };
 
 const SHOW_PENDING = 8;
 
-export default async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string; all?: string }> }) {
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string; all?: string; off?: string }> }) {
   const user = await requireUser();
-  const { denied, all } = await searchParams;
+  const { denied, all, off } = await searchParams;
+  const features = await bureauFeatures();
   const isOwner = user.role === "OWNER";
   // End of today in India time (IST = UTC+5:30), whatever the server's timezone
   const IST = 330 * 60000;
   const istNow = new Date(Date.now() + IST);
   const endOfToday = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate(), 23, 59, 59, 999) - IST);
 
+  const birthdays = await upcomingBirthdays(7);
   const [leadsToCall, due, openProposals, pending, dues, renewals, monthPayments, wa, demo] = await Promise.all([
     prisma.lead.count({ where: { status: { in: ["NEW", "FOLLOW_UP"] } } }),
     prisma.followUp.findMany({
@@ -54,10 +58,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   // Today's numbers: each one is something to act on, and opens the list behind it
   const stats = [
     { label: "Profiles to share matches with", value: pending.length, href: "#to-share", strong: pending.length > 0 },
-    { label: "Families to call back", value: callBack, href: "/pipeline?attention=1", alert: callBack > 0 },
+    ...(features.pipeline ? [{ label: "Families to call back", value: callBack, href: "/pipeline?attention=1", alert: callBack > 0 }] : []),
     { label: "Leads to call", value: leadsToCall, href: "/leads" },
-    { label: `Dues outstanding${dues.length ? ` (${dues.length})` : ""}`, value: rupees(outstanding), href: "/payments", alert: outstanding > 0 },
-    ...(isOwner ? [{ label: "Collected this month", value: rupees(collected), href: "/payments?tab=collections" }] : []),
+    ...(features.payments
+      ? [{ label: `Dues outstanding${dues.length ? ` (${dues.length})` : ""}`, value: rupees(outstanding), href: "/payments", alert: outstanding > 0 }]
+      : []),
+    ...(isOwner && features.payments ? [{ label: "Collected this month", value: rupees(collected), href: "/payments?tab=collections" }] : []),
   ];
 
   return (
@@ -73,8 +79,15 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </div>
       </div>
 
+      {isOwner && <GettingStarted whatsappLinked={wa?.status === "open"} />}
+
       <div className="mb-4 space-y-2 empty:hidden">
         {denied && <Alert tone="amber">That page is for the owner only.</Alert>}
+        {off && (
+          <Alert tone="amber">
+            {off} is switched off for this bureau.{isOwner && <> Switch it on in <Link href="/settings/features" className="font-medium underline">Settings → Features</Link>.</>}
+          </Alert>
+        )}
         {demo.any && (
           <Alert tone="amber">
             This CRM contains <strong>demo data</strong> ({demo.profiles} sample profiles) to try things out.{" "}
@@ -90,7 +103,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             WhatsApp is disconnected. <Link href="/settings/whatsapp" className="font-medium underline">Link the bureau number again</Link>
           </Alert>
         )}
-        {renewals.length > 0 && (
+        {features.payments && renewals.length > 0 && (
           <Alert tone="amber">
             {renewals.length} membership{renewals.length === 1 ? "" : "s"} to renew.{" "}
             <Link href="/payments" className="font-medium underline">See payments</Link>
@@ -172,6 +185,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           </Card>
         </div>
 
+        <div className="min-w-0 space-y-5">
         <Card title={`Follow-ups due today (${due.length})`}>
           {due.length === 0 ? (
             <p className="text-sm text-zinc-500">Nothing due.</p>
@@ -206,6 +220,24 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             </ul>
           )}
         </Card>
+        {birthdays.length > 0 && (
+          <Card title={`Birthdays this week (${birthdays.length})`}>
+            <ul className="divide-y divide-zinc-100 text-sm">
+              {birthdays.map((b) => (
+                <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <Link href={`/profiles/${b.id}`} className="hover:text-brand-700">
+                    <span className="font-mono text-xs text-brand-700">{b.code}</span> {b.fullName}
+                  </Link>
+                  <span className="text-xs text-zinc-500">
+                    {b.inDays === 0 ? "today 🎂" : b.inDays === 1 ? "tomorrow" : `in ${b.inDays} days`} · turns {b.turns}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-zinc-500">A good moment to send wishes, and their age on the biodata goes up.</p>
+          </Card>
+        )}
+        </div>
       </div>
     </>
   );
