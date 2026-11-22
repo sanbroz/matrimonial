@@ -80,6 +80,24 @@ This replaces **all** data with that moment's copy, so anything entered since is
 ./ops/restore.sh backup_YYYY-MM-DD_HHMM.tar.enc
 ```
 
+`ops/restore.sh` restores the **whole server**: every bureau and the platform, in one step that either completes
+or changes nothing. A backup from before v2 (single bureau) works too: the bureau is moved into
+`FIRST_TENANT_SLUG` again on the way back up. To restore **one** bureau only, use the console (Bureaus → bureau →
+Backups) or that bureau's Settings → Backups.
+
+**Going back from v2 to v1.2.1 completely** (only if v2 can't be fixed forward). v1.2.1 reads its data from
+schema `public` and its WhatsApp login from `/data/auth`:
+
+```bash
+git checkout d6220dc -- . && ./ops/deploy.sh                    # the v1.2.1 code (and its restore script)
+./ops/restore.sh backup_YYYY-MM-DD_HHMM.tar.enc                 # the full backup taken just before v2
+docker run --rm -v bureau-crm_whatsapp_auth:/data alpine sh -c 'mv /data/sessions/matrimonial /data/auth'
+docker compose --env-file .env.production -f docker-compose.prod.yml restart whatsapp
+```
+
+The v2 schemas (`platform`, `t_*`) stay in the database unused. Before moving to v2 again, remove them
+(`DROP SCHEMA platform, t_matrimonial CASCADE;`) so the move runs fresh.
+
 ## WhatsApp library (Baileys) updates
 
 WhatsApp changes its app regularly. New releases of the Baileys library keep the connection working. This is
