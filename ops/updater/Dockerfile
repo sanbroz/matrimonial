@@ -7,4 +7,6 @@ RUN apk add --no-cache nodejs git bash coreutils openssl \
  && git config --system safe.directory '*'
 COPY server.mjs /opt/updater/server.mjs
 WORKDIR /repo
+# The docker image's entrypoint would prefix commands with "docker"; run node directly
+ENTRYPOINT []
 CMD ["node", "/opt/updater/server.mjs"]
