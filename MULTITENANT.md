@@ -92,7 +92,7 @@ reaches a real person.
   - `<slug>.<PLATFORM_DOMAIN>` → that bureau
   - any other host → custom domain lookup, otherwise 404
 
-  It overwrites `x-mb-host` / `x-mb-area`, so these can't be faked.
+  Pages and actions resolve the bureau from the request's own `Host` header.
 - `prisma` from `@/lib/db` resolves the current bureau on every call: from the request host, or from
   `runAsTenant()` in the scheduler. Outside a bureau it returns 404. Use interactive `$transaction(async tx => …)`
   only. Platform data: `platform` from `@/lib/platform-db` (schema in `prisma/platform/schema.prisma`).

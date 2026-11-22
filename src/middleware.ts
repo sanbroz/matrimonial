@@ -9,7 +9,7 @@ import { classifyHost, normalizeHost } from "@/lib/tenant/host";
  *   console host  (bureau.<domain>)  → /console/* pages (and / → /console), super admin login
  *   bureau hosts  (<slug>.<domain> or a custom domain) → the bureau app
  *
- * The x-mb-host / x-mb-area headers are always overwritten here, so a browser can't fake them.
+ * Pages and actions find their bureau from the Host header themselves (src/lib/tenant/context.ts).
  */
 const TENANT_PUBLIC = [/^\/login$/, /^\/forgot$/, /^\/reset\//, /^\/suspended$/, /^\/api\/health$/];
 const CONSOLE_PUBLIC = [/^\/console\/login$/];
@@ -18,12 +18,9 @@ export async function middleware(req: NextRequest) {
   const host = normalizeHost(req.headers.get("host"));
   const kind = classifyHost(host);
   const path = req.nextUrl.pathname;
-  const fwd = new Headers(req.headers);
-  fwd.set("x-mb-host", host);
-  fwd.set("x-mb-area", kind.kind === "console" ? "console" : "tenant");
 
   // Health check (Docker, uptime monitors) works on any host
-  if (path === "/api/health") return NextResponse.next({ request: { headers: fwd } });
+  if (path === "/api/health") return NextResponse.next();
   if (kind.kind === "invalid") return new NextResponse("Not found", { status: 404 });
 
   if (kind.kind === "console") {
@@ -38,14 +35,14 @@ export async function middleware(req: NextRequest) {
         return redirectTo(req, "/console/login");
       }
     }
-    return NextResponse.next({ request: { headers: fwd } });
+    return NextResponse.next();
   }
 
   // Bureau host: console pages don't exist here
   if (path.startsWith("/console") || path.startsWith("/api/console")) return new NextResponse("Not found", { status: 404 });
-  if (TENANT_PUBLIC.some((r) => r.test(path))) return NextResponse.next({ request: { headers: fwd } });
+  if (TENANT_PUBLIC.some((r) => r.test(path))) return NextResponse.next();
   const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
-  if (session) return NextResponse.next({ request: { headers: fwd } });
+  if (session) return NextResponse.next();
   if (path.startsWith("/api/")) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   return redirectTo(req, "/login");
 }

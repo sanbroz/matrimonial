@@ -2,12 +2,21 @@ import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { classifyHost } from "./host";
 import { tenantForHost, type TenantInfo } from "./registry";
 
-/** Set by middleware from the Host header (any value sent by the browser is overwritten). */
-export const HOST_HEADER = "x-mb-host";
-/** "console" or "tenant", also set by middleware */
-export const AREA_HEADER = "x-mb-area";
+/**
+ * The request's own Host header. Not a header added by middleware: after a server action, Next.js
+ * renders the redirect target inside the same request WITHOUT running middleware, so middleware-added
+ * headers are missing there (the user then looked signed out and landed on the dashboard).
+ */
+async function requestHost(): Promise<string | null> {
+  try {
+    return (await headers()).get("host");
+  } catch {
+    return null; // not inside a request
+  }
+}
 
 const g = globalThis as unknown as { __tenantAls?: AsyncLocalStorage<TenantInfo> };
 const als = (g.__tenantAls ??= new AsyncLocalStorage<TenantInfo>());
@@ -21,12 +30,7 @@ export function runAsTenant<T>(tenant: TenantInfo, fn: () => Promise<T>): Promis
 export async function currentTenant(): Promise<TenantInfo | null> {
   const store = als.getStore();
   if (store) return store;
-  let host: string | null;
-  try {
-    host = (await headers()).get(HOST_HEADER);
-  } catch {
-    return null; // not inside a request
-  }
+  const host = await requestHost();
   return host ? tenantForHost(host) : null;
 }
 
@@ -39,9 +43,6 @@ export async function requireTenant(): Promise<TenantInfo> {
 
 /** True when the request is on the super admin console host. */
 export async function isConsoleRequest(): Promise<boolean> {
-  try {
-    return (await headers()).get(AREA_HEADER) === "console";
-  } catch {
-    return false;
-  }
+  const host = await requestHost();
+  return !!host && classifyHost(host).kind === "console";
 }
