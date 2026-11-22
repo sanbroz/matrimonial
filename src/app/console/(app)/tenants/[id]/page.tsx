@@ -1,3 +1,4 @@
+import { requireConsoleAdmin } from "@/lib/auth/server";
 import { notFound } from "next/navigation";
 import { platform } from "@/lib/platform-db";
 import { clientForSchema } from "@/lib/db";
@@ -26,6 +27,7 @@ import {
 const STATUS_TONE = { ACTIVE: "green", TRIAL: "blue", SUSPENDED: "red" } as const;
 
 export default async function TenantPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
+  await requireConsoleAdmin(); // layouts don't re-run on client navigation
   const { id } = await params;
   const sp = await searchParams;
   const t = await platform.tenant.findUnique({

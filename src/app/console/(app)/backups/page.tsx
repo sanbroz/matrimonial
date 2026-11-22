@@ -1,3 +1,4 @@
+import { requireConsoleAdmin } from "@/lib/auth/server";
 import Link from "next/link";
 import { platform } from "@/lib/platform-db";
 import { backupsConfigured, BACKUPS_UNAVAILABLE, formatSize, listFullBackups, listTenantBackups, type BackupFile } from "@/lib/backups";
@@ -12,6 +13,7 @@ const fmt = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 
 export default async function BackupsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
+  await requireConsoleAdmin(); // layouts don't re-run on client navigation
   const sp = await searchParams;
   const tenants = await platform.tenant.findMany({ orderBy: { createdAt: "asc" }, select: { id: true, slug: true, name: true } });
   let full: BackupFile[] = [];

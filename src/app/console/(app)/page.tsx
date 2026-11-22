@@ -1,3 +1,4 @@
+import { requireConsoleAdmin } from "@/lib/auth/server";
 import Link from "next/link";
 import { platform } from "@/lib/platform-db";
 import { billingState, daysOverdue } from "@/lib/billing";
@@ -13,6 +14,7 @@ export const metadata = { title: "Bureaus" };
 const STATUS_TONE = { ACTIVE: "green", TRIAL: "blue", SUSPENDED: "red" } as const;
 
 export default async function BureausPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
+  await requireConsoleAdmin(); // layouts don't re-run on client navigation
   const sp = await searchParams;
   const today = todayDate();
   const tenants = await platform.tenant.findMany({ orderBy: { createdAt: "asc" } });

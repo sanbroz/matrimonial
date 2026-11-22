@@ -1,3 +1,4 @@
+import { requireConsoleAdmin } from "@/lib/auth/server";
 import { platform } from "@/lib/platform-db";
 import { listWhatsAppSessions } from "@/lib/services/whatsapp";
 import { readPlatformWhatsAppOptions } from "@/lib/services/wa-library";
@@ -11,6 +12,7 @@ import { saveWhatsAppAutoUpdate } from "../../actions";
 export const metadata = { title: "Updates" };
 
 export default async function UpdatesPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
+  await requireConsoleAdmin(); // layouts don't re-run on client navigation
   const sp = await searchParams;
   const [opts, sessions, tenants, s] = await Promise.all([
     readPlatformWhatsAppOptions(),
