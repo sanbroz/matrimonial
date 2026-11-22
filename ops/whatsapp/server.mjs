@@ -159,7 +159,7 @@ class Session {
         const code = u.lastDisconnect?.error?.output?.statusCode;
         if (code === DisconnectReason.loggedOut) {
           // Unlinked from the phone (or via /logout): forget the session
-          await this.forget(this.state.status === "open" ? "Unlinked from the phone" : null);
+          await this.forget("WhatsApp ended the link (unlinked from the phone, or the session expired)");
         } else {
           this.retry++;
           const wait = Math.min(60_000, 2000 * 2 ** Math.min(this.retry, 5));
@@ -330,10 +330,12 @@ createServer(async (req, res) => {
       return reply(200, await s.send(await readJson(req)));
     }
     if (action === "logout") {
+      console.log(`[wa:${slug}] unlink requested from the app (Settings → WhatsApp → Unlink number)`);
       await sessions.get(slug)?.logout();
       return reply(200, { ok: true });
     }
     if (action === "remove") {
+      console.log(`[wa:${slug}] session removed because the bureau was deleted`);
       const s = sessions.get(slug);
       if (s) await s.forget(null);
       else await rm(`${SESSIONS_DIR}/${slug}`, { recursive: true, force: true });
