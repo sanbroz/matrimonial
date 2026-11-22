@@ -10,7 +10,6 @@ const LINKS = [
   { href: "/profiles", label: "Profiles" },
   { href: "/pipeline", label: "Pipeline" },
   { href: "/payments", label: "Payments" },
-  { href: "/import", label: "Import" },
 ];
 
 const OWNER_LINKS = [{ href: "/settings", label: "Settings" }];

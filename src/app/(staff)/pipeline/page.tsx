@@ -3,7 +3,8 @@ import type { ProposalStatus } from "@prisma/client";
 import { requireUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
-import { PROPOSAL_LABELS, needsAttention } from "@/lib/proposal-labels";
+import { MEETING_STAGES, PROPOSAL_LABELS, needsAttention } from "@/lib/proposal-labels";
+import { workflowSettings } from "@/lib/services/workflow";
 import { Badge, EmptyState, PageHeader, cx } from "@/components/ui";
 import { ProposalUpdateForm } from "@/components/proposal-update-form";
 
@@ -15,6 +16,7 @@ const MATCHED_DAYS = 60;
 export default async function PipelinePage({ searchParams }: { searchParams: Promise<{ attention?: string }> }) {
   await requireUser();
   const { attention } = await searchParams;
+  const { trackMeetings } = await workflowSettings();
   const now = new Date();
   const select = { id: true, code: true, fullName: true, gender: true } as const;
   const all = await prisma.proposal.findMany({
@@ -30,12 +32,15 @@ export default async function PipelinePage({ searchParams }: { searchParams: Pro
   const flagged = all.filter((p) => needsAttention(p, now));
   const shown = attention ? flagged : all;
   const days = (d: Date) => Math.floor((now.getTime() - d.getTime()) / 86400000);
+  // Without meeting tracking the meeting columns disappear (unless something is still in them)
+  const columns = COLUMNS.filter((c) => trackMeetings || !MEETING_STAGES.includes(c) || all.some((p) => p.status === c));
+  const gridCols = { 3: "xl:grid-cols-3", 4: "xl:grid-cols-4", 5: "xl:grid-cols-5" }[columns.length] ?? "xl:grid-cols-5";
 
   return (
     <>
       <PageHeader
         title="Pipeline"
-        subtitle="Every biodata shared with a family, by stage. The client is the family that received the biodata."
+        subtitle="Every biodata shared with a family, and what they said."
         actions={
           <div className="inline-flex overflow-hidden rounded-md border border-zinc-300 text-sm">
             <Link href="/pipeline" className={cx("px-3 py-2", !attention ? "bg-brand-600 text-white" : "bg-white")}>All ({all.length})</Link>
@@ -48,8 +53,8 @@ export default async function PipelinePage({ searchParams }: { searchParams: Pro
       {shown.length === 0 ? (
         <EmptyState>{attention ? "Nothing waiting. Every open proposal has been updated recently." : "Nothing shared yet. Use Suggested matches on a profile to start."}</EmptyState>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {COLUMNS.map((col) => {
+        <div className={cx("grid grid-cols-1 gap-4 md:grid-cols-2", gridCols)}>
+          {columns.map((col) => {
             const items = shown.filter((p) => p.status === col);
             return (
               <section key={col} className="min-w-0 rounded-lg bg-zinc-100 p-2">
@@ -57,6 +62,7 @@ export default async function PipelinePage({ searchParams }: { searchParams: Pro
                   {PROPOSAL_LABELS[col]} <span className="text-xs font-normal text-zinc-500">{items.length}</span>
                 </h2>
                 <div className="space-y-2">
+                  {items.length === 0 && <p className="px-1 py-2 text-xs text-zinc-400">None</p>}
                   {items.map((p) => {
                     const flag = needsAttention(p, now);
                     return (
@@ -78,7 +84,7 @@ export default async function PipelinePage({ searchParams }: { searchParams: Pro
                         </div>
                         <details className="mt-1.5">
                           <summary className="cursor-pointer text-xs font-medium text-brand-700">Update</summary>
-                          <div className="mt-2"><ProposalUpdateForm id={p.id} status={p.status} /></div>
+                          <div className="mt-2"><ProposalUpdateForm id={p.id} status={p.status} trackMeetings={trackMeetings} /></div>
                         </details>
                       </article>
                     );

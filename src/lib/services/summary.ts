@@ -9,6 +9,8 @@ import { openDues, renewalsDue } from "./reports";
 import { getWhatsAppStatus } from "./whatsapp";
 import { currentTenant } from "@/lib/tenant/context";
 import { tenantBaseUrl } from "@/lib/tenant/registry";
+import { workflowSettings } from "./workflow";
+import { pendingMatches } from "./matching";
 
 const IST = 330 * 60000;
 
@@ -61,12 +63,21 @@ export async function buildSummary(now = new Date()) {
     followUps.map((f) => `${f.title}: ${f.profile ? `${f.profile.code} ${f.profile.fullName}` : f.lead ? `lead ${f.lead.name}` : ""} (${formatDateTime(f.dueAt)})`),
     "Nothing due.",
   );
+  const { trackMeetings } = await workflowSettings();
+  if (trackMeetings) {
+    section(
+      `Meetings in the next 3 days (${meetings.length})`,
+      meetings.map((m) => `${m.fromProfile.code} & ${m.toProfile.code}: ${formatDateTime(m.meetingAt)}`),
+      "None.",
+    );
+  }
+  const pending = await pendingMatches();
   section(
-    `Meetings in the next 3 days (${meetings.length})`,
-    meetings.map((m) => `${m.fromProfile.code} & ${m.toProfile.code}: ${formatDateTime(m.meetingAt)}`),
-    "None.",
+    `Profiles with new matches to share (${pending.length})`,
+    pending.slice(0, 10).map((p) => `${p.code} ${p.fullName}: ${p.count} match${p.count === 1 ? "" : "es"}`),
+    "None: every active profile has been sent its matches.",
   );
-  lines.push(`\nProposals needing a call: ${attention} (of ${open.length} in progress)`);
+  lines.push(`\nFamilies to call back about shared profiles: ${attention} (of ${open.length} waiting for a reply)`);
   section(
     `Outstanding dues: ${rupees(outstanding)} (${dues.length})`,
     dues.slice(0, 10).map((d) => `${d.profile.code} ${d.profile.fullName}: ${rupees(d.balance)} for ${d.label}`),

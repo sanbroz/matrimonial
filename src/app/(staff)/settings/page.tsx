@@ -57,6 +57,19 @@ export default async function BureauSettingsPage({ searchParams }: { searchParam
         </div>
       </Card>
 
+      <Card title="How you work">
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" name="trackMeetings" defaultChecked={s.trackMeetings} className="mt-0.5 size-4 accent-brand-600" />
+          <span>
+            <span className="font-medium">We arrange meetings between families</span>
+            <span className="block text-zinc-500">
+              Adds the &quot;Meeting scheduled&quot; and &quot;Met&quot; stages, meeting dates and meeting reminders. Untick it if you only share
+              profiles: proposals then simply go Shared → Interested / Declined → Matched.
+            </span>
+          </span>
+        </label>
+      </Card>
+
       <Card title="Profile codes">
         <p className="mb-3 text-sm text-zinc-600">
           Families only ever see the code (e.g. <span className="font-mono">{s.profileCodePrefix}{s.nextProfileNumber}</span>), never the name or phone.

@@ -72,11 +72,11 @@ export default async function ProfilePage({
           .join(" · ")}
         actions={
           <>
+            <ButtonLink href={`/profiles/${p.id}/edit`}>Edit</ButtonLink>
             <ButtonLink href={`/profiles/${p.id}/biodata`}>Biodata</ButtonLink>
-            <ButtonLink href={`/profiles/${p.id}/matches`}>
-              Suggested matches{matchCount !== undefined && <span className="rounded-full bg-brand-50 px-2 text-xs font-semibold text-brand-700">{matchCount}</span>}
+            <ButtonLink href={`/profiles/${p.id}/matches`} variant="primary">
+              Suggested matches{matchCount !== undefined && <span className="rounded-full bg-white/20 px-2 text-xs font-semibold">{matchCount}</span>}
             </ButtonLink>
-            <ButtonLink href={`/profiles/${p.id}/edit`} variant="primary">Edit profile</ButtonLink>
           </>
         }
       />

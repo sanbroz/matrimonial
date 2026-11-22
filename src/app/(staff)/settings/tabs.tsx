@@ -5,15 +5,15 @@ import { usePathname } from "next/navigation";
 import { cx } from "@/components/ui";
 
 const TABS = [
-  { href: "/settings", label: "Bureau & fees" },
+  { href: "/settings", label: "Bureau" },
   { href: "/settings/biodata", label: "Biodata" },
-  { href: "/settings/matching", label: "Matching rules" },
-  { href: "/settings/plans", label: "Membership plans" },
+  { href: "/settings/matching", label: "Matching" },
+  { href: "/settings/plans", label: "Plans" },
   { href: "/settings/staff", label: "Staff" },
-  { href: "/settings/lists", label: "Dropdown lists" },
+  { href: "/settings/lists", label: "Lists" },
   { href: "/settings/email", label: "Email" },
   { href: "/settings/whatsapp", label: "WhatsApp" },
-  { href: "/settings/messages", label: "Message templates" },
+  { href: "/settings/messages", label: "Messages" },
   { href: "/settings/backups", label: "Backups" },
   { href: "/settings/demo", label: "Demo data" },
 ];

@@ -108,6 +108,8 @@ model Settings {
   registrationFee   Int      @default(0)
   successFeeDefault Int      @default(0)
   receiptPrefix     String   @default("R")
+  /// Does the bureau arrange family meetings? Off = profiles are only shared (no meeting stages)
+  trackMeetings     Boolean  @default(true)
   nextReceiptNumber Int      @default(1)
   /// Biodata look & which sections to show (used by the biodata generator).
   biodataOptions    Json?

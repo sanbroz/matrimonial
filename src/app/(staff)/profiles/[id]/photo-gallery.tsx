@@ -65,8 +65,8 @@ export function PhotoGallery({ profileId, photos }: { profileId: string; photos:
     <>
       {photos.length === 0 ? (
         <div className="flex items-center gap-4">
-          <PhotoUploader profileId={profileId} className="h-40 w-32 shrink-0" />
-          <p className="text-sm text-zinc-500">No photos yet. Add JPG, PNG or WebP photos. Large photos are shrunk automatically.</p>
+          <PhotoUploader profileId={profileId} className="h-24 w-20 shrink-0" />
+          <p className="text-sm text-zinc-500">No photos yet. Families respond much better to biodatas with a photo.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3 sm:flex-row">

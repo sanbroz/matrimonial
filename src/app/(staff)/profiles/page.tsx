@@ -86,6 +86,7 @@ export default async function ProfilesPage({ searchParams }: { searchParams: Pro
         subtitle={`${total} found`}
         actions={
           <>
+            <ButtonLink href="/import">Import from Excel</ButtonLink>
             <ButtonLink href="/shares">Share links</ButtonLink>
             <ButtonLink href="/profiles/new" variant="primary">Add profile</ButtonLink>
           </>

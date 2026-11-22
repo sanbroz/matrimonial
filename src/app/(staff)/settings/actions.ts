@@ -45,6 +45,7 @@ export async function saveBureauSettings(fd: FormData) {
       profileCodePrefix: prefix,
       ...(counterEdited ? { nextProfileNumber: nextNum } : {}),
       registrationFee: money(fd, "registrationFee"),
+      trackMeetings: fd.get("trackMeetings") === "on",
       successFeeDefault: money(fd, "successFeeDefault"),
       receiptPrefix: str(fd, "receiptPrefix").toUpperCase() || "R",
     },

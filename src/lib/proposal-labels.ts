@@ -28,3 +28,14 @@ export function needsAttention(p: { status: ProposalStatus; updatedAt: Date; mee
   const days = QUIET_DAYS[p.status];
   return days != null && now.getTime() - p.updatedAt.getTime() > days * 24 * 3600 * 1000;
 }
+
+/** Stages that only exist for bureaus that arrange family meetings. */
+export const MEETING_STAGES: ProposalStatus[] = ["MEETING_SCHEDULED", "MET"];
+
+/**
+ * Stages offered in the stage menus. Without meeting tracking: Shared → Interested / Declined → Matched / Dropped.
+ * A proposal already at a meeting stage keeps it, so nothing is lost when the setting is switched off.
+ */
+export function stageOptions(trackMeetings: boolean, current?: ProposalStatus): ProposalStatus[] {
+  return (Object.keys(PROPOSAL_LABELS) as ProposalStatus[]).filter((s) => trackMeetings || !MEETING_STAGES.includes(s) || s === current);
+}

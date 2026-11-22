@@ -105,3 +105,52 @@ export async function countMatches(profileIds: string[]): Promise<Map<string, nu
   }
   return out;
 }
+
+export interface PendingMatchRow {
+  id: string;
+  code: string;
+  fullName: string;
+  gender: "MALE" | "FEMALE";
+  dob: Date | null;
+  religion: string | null;
+  caste: string | null;
+  city: string | null;
+  country: string | null;
+  urgent: boolean;
+  photoPath: string | null;
+  /** Suggested matches not yet shared with this family */
+  count: number;
+  /** When this family was last sent a profile (null = never) */
+  lastSharedAt: Date | null;
+}
+
+/**
+ * Active profiles that have suggested matches not yet shared with them (dashboard, daily email).
+ * Urgent first, then the families waiting longest / with the most matches.
+ */
+export async function pendingMatches(): Promise<PendingMatchRow[]> {
+  const active = await prisma.profile.findMany({
+    where: { status: "ACTIVE" },
+    select: {
+      id: true, code: true, fullName: true, gender: true, dob: true, religion: true, caste: true, city: true, country: true, urgent: true,
+      photos: { where: { isPrimary: true }, take: 1, select: { path: true } },
+      proposalsSent: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
+    },
+  });
+  const counts = await countMatches(active.map((p) => p.id));
+  return active
+    .map((p) => ({
+      id: p.id, code: p.code, fullName: p.fullName, gender: p.gender, dob: p.dob, religion: p.religion, caste: p.caste,
+      city: p.city, country: p.country, urgent: p.urgent,
+      photoPath: p.photos[0]?.path ?? null,
+      count: counts.get(p.id) ?? 0,
+      lastSharedAt: p.proposalsSent[0]?.createdAt ?? null,
+    }))
+    .filter((p) => p.count > 0)
+    .sort(
+      (a, b) =>
+        Number(b.urgent) - Number(a.urgent) ||
+        (a.lastSharedAt?.getTime() ?? 0) - (b.lastSharedAt?.getTime() ?? 0) ||
+        b.count - a.count,
+    );
+}

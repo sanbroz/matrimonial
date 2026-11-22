@@ -109,6 +109,14 @@ and `/api/health` is there for uptime monitoring.
 - Message texts are editable in Settings → Message templates. Every message is logged on the profile.
 - Setup steps: DEPLOY.md, "Email and WhatsApp".
 
+## Simpler daily work (v2.4)
+
+- **Dashboard:**
+  - five numbers to act on: profiles to share matches with, families to call back, leads to call, dues outstanding and (for the owner) collected this month
+  - **Profiles with matches to share**: active profiles with suggested matches not yet sent, urgent and longest-waiting first, each with a Share button
+- **Settings → Bureau → How you work:** untick "We arrange meetings between families" if the bureau only shares profiles. Proposals then go Shared → Interested / Declined → Matched, with no meeting stages, dates or reminders. The daily email skips meetings too.
+- Import from Excel moved to the Profiles page; settings tabs have short names.
+
 ## Sharing several profiles (v2.2)
 
 - **Select** profiles with the check boxes, in Profiles or on a family's suggested matches, then click **Share selected**.

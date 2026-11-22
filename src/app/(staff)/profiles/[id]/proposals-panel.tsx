@@ -11,6 +11,7 @@ import { sendReminder } from "@/lib/actions/messaging";
 import { addressee, messageContext } from "@/lib/services/message-vars";
 import { whatsappConfigured } from "@/lib/services/whatsapp";
 import { renderTemplate } from "@/lib/templates";
+import { workflowSettings } from "@/lib/services/workflow";
 
 /** Biodata shared with this family, and this profile's biodata shared with others — with timeline. */
 export async function ProposalsPanel({ profileId }: { profileId: string }) {
@@ -25,6 +26,7 @@ export async function ProposalsPanel({ profileId }: { profileId: string }) {
       events: { orderBy: { createdAt: "desc" }, include: { user: { select: { name: true } } } },
     },
   });
+  const { trackMeetings } = await workflowSettings();
   const hasMeeting = proposals.some((p) => p.status === "MEETING_SCHEDULED" && p.meetingAt);
   const [me, ctx] = hasMeeting
     ? await Promise.all([
@@ -79,7 +81,7 @@ export async function ProposalsPanel({ profileId }: { profileId: string }) {
                         disabledReason={waReason}
                       />
                     )}
-                    <ProposalUpdateForm id={p.id} status={p.status} />
+                    <ProposalUpdateForm id={p.id} status={p.status} trackMeetings={trackMeetings} />
                     <ol className="space-y-1.5 border-l-2 border-zinc-100 pl-3 text-sm">
                       {p.events.map((e) => (
                         <li key={e.id}>

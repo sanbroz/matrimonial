@@ -3,11 +3,11 @@
 import { useId, useState } from "react";
 import type { ProposalStatus } from "@prisma/client";
 import { updateProposalStatus } from "@/app/(staff)/profiles/[id]/matches/actions";
-import { PROPOSAL_LABELS } from "@/lib/proposal-labels";
+import { PROPOSAL_LABELS, stageOptions } from "@/lib/proposal-labels";
 import { Field, inputClass } from "./ui";
 import { SubmitButton } from "./submit-button";
 
-type Props = { id: string; status: ProposalStatus };
+type Props = { id: string; status: ProposalStatus; /** false: no meeting stages (bureau only shares profiles) */ trackMeetings?: boolean };
 
 /**
  * Change stage + note. Extra fields appear for meeting / declined / matched.
@@ -18,7 +18,7 @@ export function ProposalUpdateForm(props: Props) {
   return <StageForm key={`${props.id}:${props.status}`} {...props} />;
 }
 
-function StageForm({ id, status }: Props) {
+function StageForm({ id, status, trackMeetings = true }: Props) {
   const [next, setNext] = useState<ProposalStatus>(status);
   const reasonsId = useId(); // unique per proposal (several forms on one page)
   return (
@@ -27,7 +27,7 @@ function StageForm({ id, status }: Props) {
       <input type="hidden" name="id" value={id} />
       <Field label="Stage">
         <select name="status" value={next} onChange={(e) => setNext(e.target.value as ProposalStatus)} className={inputClass}>
-          {Object.entries(PROPOSAL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          {stageOptions(trackMeetings, status).map((v) => <option key={v} value={v}>{PROPOSAL_LABELS[v]}</option>)}
         </select>
       </Field>
       <Field label="Note (optional)">
