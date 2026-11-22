@@ -109,6 +109,11 @@ and `/api/health` is there for uptime monitoring.
 - Message texts are editable in Settings → Message templates. Every message is logged on the profile.
 - Setup steps: DEPLOY.md, "Email and WhatsApp".
 
+## Multiple bureaus (v2)
+
+Many bureaus on one server, each on its own subdomain with separate data, files, logins, WhatsApp and backups,
+managed from a super admin console with billing. See [MULTITENANT.md](MULTITENANT.md).
+
 ## Later ideas
 
 - Public self-registration app / website for families (the data model already allows it)

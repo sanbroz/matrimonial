@@ -1,5 +1,8 @@
 # Going live: Bureau CRM on a cloud server
 
+> **v2 runs many bureaus.** Also read [MULTITENANT.md](MULTITENANT.md): `PLATFORM_DOMAIN`, the wildcard
+> Cloudflare route, and the super admin console at `bureau.<domain>`.
+
 This puts the CRM on the internet at your own address (e.g. `https://crm.yourbureau.in`), with HTTPS,
 nightly encrypted backups, and simple update/restore commands. Plan about an hour the first time.
 
@@ -125,11 +128,11 @@ host, use the host's LAN IP with `HTTP_BIND` set to that IP.) Ports 80/443 don't
 2. Enter the Gmail address and the App Password, tick *Send emails from the app*, save, then *Send test*.
 3. Optional: turn on the *Daily summary* and pick a time.
 
-`APP_URL` (e.g. `https://matrimonial.sanbroz.com`) must be set in `.env.production`. Password-reset emails are
-refused without it. The App Password is stored encrypted with `AUTH_SECRET`; if `AUTH_SECRET` ever changes,
+Links in emails (password reset, daily summary) use the bureau's own address
+(`<subdomain>.PLATFORM_DOMAIN`). The App Password is stored encrypted with `AUTH_SECRET`; if `AUTH_SECRET` ever changes,
 enter the App Password again.
 
-**WhatsApp:** Settings → WhatsApp. On the **bureau's phone** open WhatsApp → Linked devices → Link a device,
+**WhatsApp:** Settings → WhatsApp → *Link a WhatsApp number*. On the **bureau's phone** open WhatsApp → Linked devices → Link a device,
 and scan the QR code. Then send a test message to your own phone. Use a separate bureau number. This connection
 is unofficial (WhatsApp Web style), and unsolicited or bulk messages can get a number banned.
 
