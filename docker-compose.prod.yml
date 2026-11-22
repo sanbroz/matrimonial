@@ -1,0 +1,79 @@
+# Production stack. Always run through the scripts in ops/ (they pass --env-file .env.production):
+#   ./ops/deploy.sh          build, migrate, start / update
+#   ./ops/backup-now.sh      take a backup immediately
+#   ./ops/restore.sh FILE    restore a backup
+name: bureau-crm
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: matri
+      POSTGRES_DB: matrimonial
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matri -d matrimonial"]
+      interval: 10s
+      retries: 10
+    # No ports: the database is only reachable from the other containers.
+
+  app:
+    build: { context: ., target: runner }
+    image: bureau-crm-app
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql://matri:${POSTGRES_PASSWORD}@db:5432/matrimonial?schema=public
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db: { condition: service_healthy }
+
+  # One-off: database migrations + first-time setup (owner account, dropdown lists)
+  tools:
+    build: { context: ., target: tools }
+    image: bureau-crm-tools
+    profiles: ["tools"]
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql://matri:${POSTGRES_PASSWORD}@db:5432/matrimonial?schema=public
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed"
+    depends_on:
+      db: { condition: service_healthy }
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env.production}
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+
+  backup:
+    build: ./ops/backup
+    image: bureau-crm-backup
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      TZ: Asia/Kolkata
+    volumes:
+      - backups:/backups
+      - uploads:/data/uploads
+    depends_on:
+      db: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  uploads:
+  backups:
+  caddy_data:
+  caddy_config:

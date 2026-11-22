@@ -1,0 +1,17 @@
+# SITE_ADDRESS is your domain (e.g. crm.yourbureau.in). Caddy then gets and renews a free
+# HTTPS certificate automatically. For a local test use SITE_ADDRESS=:80 (plain http).
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	# Photos, kundli files and spreadsheet imports
+	request_body {
+		max_size 25MB
+	}
+
+	reverse_proxy app:3000
+}

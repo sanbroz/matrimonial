@@ -1,0 +1,72 @@
+import { requireOwner } from "@/lib/auth/server";
+import { prisma } from "@/lib/db";
+import { fileUrl } from "@/lib/storage";
+import { Card, Field, inputClass } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
+import { saveBureauSettings } from "./actions";
+import { Flash } from "./flash";
+
+export const metadata = { title: "Settings" };
+
+export default async function BureauSettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
+  await requireOwner();
+  const sp = await searchParams;
+  const s = await prisma.settings.findUniqueOrThrow({ where: { id: 1 } });
+  const maxCode = await prisma.profile.count();
+
+  return (
+    <form action={saveBureauSettings} className="space-y-5">
+      <Flash {...sp} />
+      <Card title="Bureau details (shown on biodata and receipts)">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Bureau name"><input name="bureauName" defaultValue={s.bureauName} className={inputClass} /></Field>
+          <Field label="Tagline"><input name="tagline" defaultValue={s.tagline ?? ""} placeholder="e.g. Trusted matchmaking since 1998" className={inputClass} /></Field>
+          <Field label="Office phone"><input name="phone" defaultValue={s.phone ?? ""} className={inputClass} /></Field>
+          <Field label="WhatsApp number"><input name="whatsapp" defaultValue={s.whatsapp ?? ""} className={inputClass} /></Field>
+          <Field label="Email"><input name="email" type="email" defaultValue={s.email ?? ""} className={inputClass} /></Field>
+          <Field label="Address" className="sm:col-span-2"><textarea name="address" rows={2} defaultValue={s.address ?? ""} className={inputClass} /></Field>
+          <div className="sm:col-span-2">
+            <span className="mb-1 block text-xs font-medium text-zinc-600">Logo</span>
+            <div className="flex flex-wrap items-center gap-4">
+              {s.logoPath && (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={fileUrl(s.logoPath)} alt="Logo" className="h-16 w-auto rounded border border-zinc-200 bg-white p-1" />
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="removeLogo" /> Remove logo</label>
+                </>
+              )}
+              <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" className="text-sm" />
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card title="Profile codes">
+        <p className="mb-3 text-sm text-zinc-600">
+          Families only ever see the code (e.g. <span className="font-mono">{s.profileCodePrefix}{s.nextProfileNumber}</span>), never the name or phone.
+          {maxCode > 0 && " Changing these only affects new profiles."}
+        </p>
+        <div className="grid grid-cols-2 gap-4 sm:w-96">
+          <Field label="Prefix"><input name="profileCodePrefix" defaultValue={s.profileCodePrefix} maxLength={6} className={inputClass} /></Field>
+          <Field label="Next number"><input name="nextProfileNumber" type="number" min={1} defaultValue={s.nextProfileNumber} className={inputClass} /></Field>
+        </div>
+      </Card>
+
+      <Card title="Fees">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Field label="Registration fee (₹)" hint="Charged once when a profile is registered">
+            <input name="registrationFee" inputMode="numeric" defaultValue={s.registrationFee} className={inputClass} />
+          </Field>
+          <Field label="Default success fee (₹)" hint="Used when a match is closed, unless the client's plan sets its own. Staff can still change the amount at that time.">
+            <input name="successFeeDefault" inputMode="numeric" defaultValue={s.successFeeDefault} className={inputClass} />
+          </Field>
+          <Field label="Receipt number prefix" hint={`Next receipt: ${s.receiptPrefix}${s.nextReceiptNumber}`}>
+            <input name="receiptPrefix" defaultValue={s.receiptPrefix} maxLength={6} className={inputClass} />
+          </Field>
+        </div>
+      </Card>
+
+      <SubmitButton>Save settings</SubmitButton>
+    </form>
+  );
+}

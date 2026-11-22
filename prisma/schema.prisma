@@ -1,0 +1,503 @@
+// Matchmaking bureau CRM — staff-only.
+// Money is stored as whole rupees (Int). Dates of birth are date-only (UTC).
+
+generator client {
+  provider      = "prisma-client-js"
+  // native = your computer; debian-openssl-3.0.x = the production Docker image
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── Staff & settings ─────────────────────────
+
+enum Role {
+  OWNER
+  STAFF
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(STAFF)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  leadsCreated    Lead[]      @relation("LeadCreatedBy")
+  leadsAssigned   Lead[]      @relation("LeadAssignedTo")
+  profilesCreated Profile[]   @relation("ProfileCreatedBy")
+  notes           Note[]
+  followUps       FollowUp[]  @relation("FollowUpAssignedTo")
+  followUpsMade   FollowUp[]  @relation("FollowUpCreatedBy")
+  proposals       Proposal[]
+  payments        Payment[]
+  savedSearches   SavedSearch[]
+  proposalEvents  ProposalEvent[]
+  paymentsVoided  Payment[]       @relation("PaymentVoidedBy")
+}
+
+/// Single row (id = 1): everything the owner can customise.
+model Settings {
+  id                Int      @id @default(1)
+  bureauName        String   @default("My Matrimonial Bureau")
+  tagline           String?
+  phone             String?
+  whatsapp          String?
+  email             String?
+  address           String?
+  logoPath          String?
+  profileCodePrefix String   @default("PM")
+  nextProfileNumber Int      @default(1001)
+  registrationFee   Int      @default(0)
+  successFeeDefault Int      @default(0)
+  receiptPrefix     String   @default("R")
+  nextReceiptNumber Int      @default(1)
+  /// Biodata look & which sections to show (used by the biodata generator).
+  biodataOptions    Json?
+  /// Rules for suggested matches (gotra rule, two-way check…).
+  matchingOptions   Json?
+  updatedAt         DateTime @updatedAt
+}
+
+/// A profiles-list filter a staff member saved for reuse.
+model SavedSearch {
+  id        String   @id @default(cuid())
+  name      String
+  /// URL query string of /profiles, e.g. "gender=FEMALE&religion=Sikh"
+  query     String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Customisable dropdown suggestions (religion, caste, education, ...).
+model OptionItem {
+  id        String @id @default(cuid())
+  category  String
+  value     String
+  sortOrder Int    @default(0)
+
+  @@unique([category, value])
+  @@index([category, sortOrder])
+}
+
+model Plan {
+  id           String       @id @default(cuid())
+  name         String
+  durationDays Int
+  price        Int
+  /// Max introductions (profiles shared) in the plan; null = unlimited.
+  introLimit   Int?
+  /// Overrides Settings.successFeeDefault when set.
+  successFee   Int?
+  description  String?
+  active       Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  memberships  Membership[]
+}
+
+// ───────────────────────── Leads ─────────────────────────
+
+enum LeadSource {
+  PHONE
+  WHATSAPP
+  WALK_IN
+  REFERRAL
+  SOCIAL_MEDIA
+  NEWSPAPER
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  FOLLOW_UP
+  CONVERTED
+  LOST
+}
+
+model Lead {
+  id           String     @id @default(cuid())
+  name         String
+  phone        String
+  altPhone     String?
+  source       LeadSource @default(PHONE)
+  /// Who the match is for, e.g. "Self", "Son", "Daughter", "Brother".
+  forWhom      String?
+  gender       Gender?
+  city         String?
+  details      String?
+  status       LeadStatus @default(NEW)
+  lostReason   String?
+  assignedToId String?
+  assignedTo   User?      @relation("LeadAssignedTo", fields: [assignedToId], references: [id])
+  createdById  String
+  createdBy    User       @relation("LeadCreatedBy", fields: [createdById], references: [id])
+  profileId    String?    @unique
+  profile      Profile?   @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  notes     Note[]
+  followUps FollowUp[]
+
+  @@index([status])
+  @@index([phone])
+}
+
+// ───────────────────────── Profiles ─────────────────────────
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MaritalStatus {
+  NEVER_MARRIED
+  DIVORCED
+  AWAITING_DIVORCE
+  WIDOWED
+  ANNULLED
+}
+
+enum ProfileStatus {
+  ACTIVE
+  ON_HOLD
+  MATCHED
+  CLOSED
+}
+
+model Profile {
+  id     String        @id @default(cuid())
+  /// Public identifier shown on biodata, e.g. PM1001.
+  code   String        @unique
+  status ProfileStatus @default(ACTIVE)
+  urgent      Boolean @default(false)
+  vip         Boolean @default(false)
+  specialCase Boolean @default(false)
+
+  // Basic
+  fullName           String
+  gender             Gender
+  dob                DateTime?     @db.Date
+  birthTime          String?
+  birthPlace         String?
+  heightCm           Int?
+  weightKg           Int?
+  complexion         String?
+  bodyType           String?
+  maritalStatus      MaritalStatus @default(NEVER_MARRIED)
+  childrenCount      Int           @default(0)
+  childrenLivingWith String?
+  disability         String?
+  diet               String?
+  smoking            String?
+  drinking           String?
+  motherTongue       String?
+  about              String?
+
+  // Religion & horoscope
+  religion         String?
+  caste            String?
+  subCaste         String?
+  gotraSelf        String?
+  gotraMother      String?
+  gotraGrandmother String?
+  sikhStatus       String?
+  manglik          String?
+  rashi            String?
+  nakshatra        String?
+  kundliPath       String?
+
+  // Education & career
+  education       String?
+  educationDetail String?
+  profession      String?
+  employer        String?
+  annualIncome    String?
+
+  // Location & NRI
+  city           String?
+  state          String?
+  country        String? @default("India")
+  nativePlace    String?
+  nativeDistrict String?
+  visaStatus     String?
+  willingAbroad  String?
+
+  // Family (internal)
+  fatherName       String?
+  fatherOccupation String?
+  motherName       String?
+  motherOccupation String?
+  brothers         Int?
+  brothersMarried  Int?
+  sisters          Int?
+  sistersMarried   Int?
+  familyType       String?
+  familyValues     String?
+  property         String?
+
+  // Contact (INTERNAL ONLY — never printed on biodata)
+  contactName     String?
+  contactRelation String?
+  phone           String?
+  altPhone        String?
+  email           String?
+  address         String?
+
+  // Consent
+  consentGiven Boolean   @default(false)
+  consentAt    DateTime?
+
+  importedFrom String?
+  createdById  String
+  createdBy    User     @relation("ProfileCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  lead           Lead?
+  preference     PartnerPreference?
+  photos         Photo[]
+  notes          Note[]
+  followUps      FollowUp[]
+  proposalsSent  Proposal[]   @relation("ProposalFrom")
+  proposalsGot   Proposal[]   @relation("ProposalTo")
+  memberships    Membership[]
+  payments       Payment[]
+  dues           Due[]
+
+  @@index([gender, status])
+  @@index([religion, caste])
+  @@index([phone])
+  @@index([fullName])
+}
+
+model PartnerPreference {
+  id              String          @id @default(cuid())
+  profileId       String          @unique
+  profile         Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  ageMin          Int?
+  ageMax          Int?
+  heightMinCm     Int?
+  heightMaxCm     Int?
+  religions       String[]
+  castes          String[]
+  excludeCastes   String[]
+  casteNoBar      Boolean         @default(false)
+  maritalStatuses MaritalStatus[]
+  manglik         String?
+  countries       String[]
+  education       String?
+  minIncome       String?
+  diet            String?
+  notes           String?
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  path      String
+  isPrimary Boolean  @default(false)
+  onBiodata Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+// ───────────────────────── Notes & follow-ups ─────────────────────────
+
+enum NoteKind {
+  CALL
+  VISIT
+  WHATSAPP
+  OTHER
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  kind      NoteKind @default(CALL)
+  body      String
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  profileId String?
+  profile   Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([profileId])
+}
+
+model FollowUp {
+  id           String    @id @default(cuid())
+  title        String
+  dueAt        DateTime
+  done         Boolean   @default(false)
+  doneAt       DateTime?
+  leadId       String?
+  lead         Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  profileId    String?
+  profile      Profile?  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  assignedToId String?
+  assignedTo   User?     @relation("FollowUpAssignedTo", fields: [assignedToId], references: [id])
+  createdById  String
+  createdBy    User      @relation("FollowUpCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime  @default(now())
+
+  @@index([done, dueAt])
+}
+
+// ───────────────────────── Matching pipeline (phase 4) ─────────────────────────
+
+enum ProposalStatus {
+  SHARED
+  INTERESTED
+  DECLINED
+  MEETING_SCHEDULED
+  MET
+  MATCHED
+  DROPPED
+}
+
+model Proposal {
+  id            String         @id @default(cuid())
+  /// The client whose family received the biodata.
+  fromProfileId String
+  fromProfile   Profile        @relation("ProposalFrom", fields: [fromProfileId], references: [id], onDelete: Cascade)
+  /// The profile whose biodata was shared.
+  toProfileId   String
+  toProfile     Profile        @relation("ProposalTo", fields: [toProfileId], references: [id], onDelete: Cascade)
+  status        ProposalStatus @default(SHARED)
+  declineReason String?
+  meetingAt     DateTime?
+  matchedAt     DateTime?
+  notes         String?
+  createdById   String
+  createdBy     User           @relation(fields: [createdById], references: [id])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  dues          Due[]
+  events        ProposalEvent[]
+
+  @@unique([fromProfileId, toProfileId])
+  @@index([status, updatedAt])
+}
+
+/// Timeline of a proposal: every status change, with an optional note.
+model ProposalEvent {
+  id         String         @id @default(cuid())
+  proposalId String
+  proposal   Proposal       @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  status     ProposalStatus
+  note       String?
+  userId     String
+  user       User           @relation(fields: [userId], references: [id])
+  createdAt  DateTime       @default(now())
+
+  @@index([proposalId, createdAt])
+}
+
+// ───────────────────────── Money (phase 5) ─────────────────────────
+
+model Membership {
+  id         String    @id @default(cuid())
+  profileId  String
+  profile    Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  planId     String
+  plan       Plan      @relation(fields: [planId], references: [id])
+  startDate  DateTime  @db.Date
+  endDate    DateTime  @db.Date
+  price      Int
+  successFee Int?
+  notes      String?
+  createdAt  DateTime  @default(now())
+  payments   Payment[]
+  dues       Due[]
+
+  @@index([endDate])
+}
+
+enum PaymentKind {
+  REGISTRATION
+  MEMBERSHIP
+  SUCCESS_FEE
+  OTHER
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  BANK
+  CHEQUE
+  OTHER
+}
+
+/// A receipt. Never deleted (accounting): the owner can void it, and it survives
+/// profile deletion with a snapshot of who paid.
+model Payment {
+  id           String      @id @default(cuid())
+  receiptNo    String      @unique
+  profileId    String?
+  profile      Profile?    @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  /// Snapshot at the time of payment (kept if the profile is deleted)
+  payerName    String
+  profileCode  String
+  kind         PaymentKind
+  amount       Int
+  mode         PaymentMode @default(CASH)
+  reference    String?
+  paidAt       DateTime    @default(now())
+  membershipId String?
+  membership   Membership? @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+  dueId        String?
+  due          Due?        @relation(fields: [dueId], references: [id], onDelete: SetNull)
+  /// What it was for, printed on the receipt (e.g. "Gold 6 months membership")
+  description  String
+  notes        String?
+  voidedAt     DateTime?
+  voidReason   String?
+  voidedById   String?
+  voidedBy     User?       @relation("PaymentVoidedBy", fields: [voidedById], references: [id])
+  createdById  String
+  createdBy    User        @relation(fields: [createdById], references: [id])
+  createdAt    DateTime    @default(now())
+
+  @@index([paidAt])
+  @@index([profileId])
+}
+
+enum DueStatus {
+  OPEN
+  PAID
+  WAIVED
+}
+
+model Due {
+  id         String      @id @default(cuid())
+  profileId  String
+  profile    Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  kind         PaymentKind
+  /// e.g. "Registration fee", "Gold 6 months membership", "Success fee (match with PM1036)"
+  label        String
+  amount       Int
+  status       DueStatus   @default(OPEN)
+  proposalId   String?
+  proposal     Proposal?   @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  membershipId String?
+  membership   Membership? @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  notes        String?
+  createdAt    DateTime    @default(now())
+  payments     Payment[]
+
+  @@index([status])
+  @@index([profileId])
+}

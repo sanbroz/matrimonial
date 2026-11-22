@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: matrimonial-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: matri
+      POSTGRES_PASSWORD: matri_local_pw
+      POSTGRES_DB: matrimonial
+    ports:
+      # Only reachable from this computer, not from the office network
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - matrimonial_pg:/var/lib/postgresql/data
+
+volumes:
+  matrimonial_pg:

@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #fdf2f4;
+  --color-brand-100: #fbe4e8;
+  --color-brand-200: #f6c6d0;
+  --color-brand-500: #c2304f;
+  --color-brand-600: #a8233f;
+  --color-brand-700: #8b1c34;
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Gurmukhi", Arial, sans-serif;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: #f6f6f7;
+  color: #1c1c1f;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+/* Printing (biodata, receipts): only the .print-sheet element is printed, edge to edge */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-sheet,
+  .print-sheet * {
+    visibility: visible;
+  }
+  .print-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

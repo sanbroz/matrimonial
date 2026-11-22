@@ -1,0 +1,13 @@
+# Keep LF line endings everywhere (same files on Windows and on the Linux server).
+* text=auto eol=lf
+
+# Shell scripts and config run inside Linux containers: must be LF
+*.sh text eol=lf
+Caddyfile text eol=lf
+Dockerfile text eol=lf
+
+# Binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
