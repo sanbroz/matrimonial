@@ -17,6 +17,10 @@ export interface SessionPayload {
   tv: number;
   /** Bureau (tenant) id: a cookie from one bureau is refused on another */
   tid: string;
+  /** This login's id; signing out revokes it (other devices stay signed in) */
+  sid?: string;
+  /** Expiry (unix seconds), set when read back */
+  exp?: number;
 }
 
 export interface ConsoleSessionPayload {
@@ -34,6 +38,7 @@ function key() {
 export async function signSession(payload: SessionPayload): Promise<string> {
   return new SignJWT({ ...payload, typ: "tenant" })
     .setProtectedHeader({ alg: "HS256" })
+    .setJti(payload.sid ?? crypto.randomUUID())
     .setIssuedAt()
     .setExpirationTime(`${SESSION_MAX_AGE}s`)
     .sign(key());
@@ -49,6 +54,8 @@ export async function verifySession(token: string | undefined): Promise<SessionP
       role: payload.role === "OWNER" ? "OWNER" : "STAFF",
       tv: typeof payload.tv === "number" ? payload.tv : 0,
       tid: payload.tid,
+      sid: typeof payload.jti === "string" ? payload.jti : undefined,
+      exp: typeof payload.exp === "number" ? payload.exp : undefined,
     };
   } catch {
     return null;

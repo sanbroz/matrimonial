@@ -67,3 +67,16 @@ export function mapRow(
 export function isBlankRow(row: string[]) {
   return row.every((c) => (c ?? "").trim() === "");
 }
+
+/** Rows sent to the server per request (a big file is imported in steps, so no request runs too long). */
+export const IMPORT_BATCH = 200;
+
+/**
+ * Same person without a phone match: same name (spacing / case / dots ignored) and same date of birth.
+ * null when either is missing (then only the phone check applies).
+ */
+export function nameDobKey(name: unknown, dob: unknown): string | null {
+  const n = typeof name === "string" ? name.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, " ").trim() : "";
+  const d = dob instanceof Date && !Number.isNaN(dob.getTime()) ? dob.toISOString().slice(0, 10) : "";
+  return n && d ? `${n}|${d}` : null;
+}

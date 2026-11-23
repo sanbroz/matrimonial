@@ -109,6 +109,19 @@ and `/api/health` is there for uptime monitoring.
 - Message texts are editable in Settings → Message templates. Every message is logged on the profile.
 - Setup steps: DEPLOY.md, "Email and WhatsApp".
 
+## Staff permissions and safer sign-out (v2.8)
+
+- **Settings → Staff:** for each staff member, tick what they may also do:
+  - **Payments and dues** (on by default): if unticked, the Payments page, money panel and dues number are hidden from that person.
+  - **Reports and Excel export** (off by default)
+  - **Delete profiles and leads** (off by default)
+  - Owners can always do everything.
+- **Sign out everywhere** on each account (for a lost phone or a shared computer). Signing out now also cancels that login on the server, so a copied cookie stops working. Other devices stay signed in.
+- **Daily summary emails are retried** if sending fails (after 10, 30, 60 and 120 minutes), for both bureaus and the super admin.
+- **Large Excel imports** are sent in batches of 200 rows with progress, so big files no longer time out.
+- **Import duplicates:** a person already in the CRM (same phone, or same name and date of birth) is skipped. If an import stops halfway, importing the same file again adds only the rest.
+- **Backup download password** is no longer visible in the server's process list.
+
 ## Simple to advanced, search and reports (v2.7)
 
 - **Settings → Features:** each bureau chooses how much of the CRM it uses. Start from a preset, then change single switches:

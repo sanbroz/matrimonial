@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireFeature } from "@/lib/services/workflow";
-import { requireUser } from "@/lib/auth/server";
+import { requirePermission } from "@/lib/auth/server";
 import { collections, currentMonth, openDues, renewalsDue } from "@/lib/services/reports";
 import { KIND_LABELS, MODE_LABELS, daysLeft, rupees } from "@/lib/money";
 import { formatDateOnly, formatDateTime, formatDayIST } from "@/lib/format";
@@ -15,7 +15,7 @@ import { renderTemplate } from "@/lib/templates";
 export const metadata = { title: "Payments" };
 
 export default async function PaymentsPage({ searchParams }: { searchParams: Promise<{ tab?: string; month?: string; ok?: string }> }) {
-  const user = await requireUser();
+  const user = await requirePermission("payments");
   await requireFeature("payments");
   const sp = await searchParams;
   const isOwner = user.role === "OWNER";

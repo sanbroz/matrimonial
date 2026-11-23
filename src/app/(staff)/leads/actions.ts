@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { SOURCE_LABELS } from "@/lib/lead-labels";
 import { prisma } from "@/lib/db";
-import { requireOwner, requireUser } from "@/lib/auth/server";
+import { requirePermission, requireUser } from "@/lib/auth/server";
 import { ParseError, normalisePhone } from "@/lib/parse";
 import { fromDateTimeInputIST } from "@/lib/format";
 
@@ -83,7 +83,7 @@ export async function updateLeadAction(id: string, _prev: LeadFormState, fd: For
 }
 
 export async function deleteLeadAction(fd: FormData) {
-  await requireOwner();
+  await requirePermission("delete");
   const id = z.string().parse(fd.get("id"));
   await prisma.lead.deleteMany({ where: { id } });
   revalidatePath("/leads");

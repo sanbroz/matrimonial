@@ -60,7 +60,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     { label: "Profiles to share matches with", value: pending.length, href: "#to-share", strong: pending.length > 0 },
     ...(features.pipeline ? [{ label: "Families to call back", value: callBack, href: "/pipeline?attention=1", alert: callBack > 0 }] : []),
     { label: "Leads to call", value: leadsToCall, href: "/leads" },
-    ...(features.payments
+    ...(features.payments && user.can.payments
       ? [{ label: `Dues outstanding${dues.length ? ` (${dues.length})` : ""}`, value: rupees(outstanding), href: "/payments", alert: outstanding > 0 }]
       : []),
     ...(isOwner && features.payments ? [{ label: "Collected this month", value: rupees(collected), href: "/payments?tab=collections" }] : []),
@@ -82,7 +82,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {isOwner && <GettingStarted whatsappLinked={wa?.status === "open"} />}
 
       <div className="mb-4 space-y-2 empty:hidden">
-        {denied && <Alert tone="amber">That page is for the owner only.</Alert>}
+        {denied && (
+          <Alert tone="amber">
+            {denied === "1" ? "That page is for the owner only." : `Your account can't open that page (${denied}). Ask the owner to allow it in Settings → Staff.`}
+          </Alert>
+        )}
         {off && (
           <Alert tone="amber">
             {off} is switched off for this bureau.{isOwner && <> Switch it on in <Link href="/settings/features" className="font-medium underline">Settings → Features</Link>.</>}

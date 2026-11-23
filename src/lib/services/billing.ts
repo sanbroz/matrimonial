@@ -6,6 +6,7 @@ import { rupees } from "@/lib/money";
 import { invalidateTenantCache } from "@/lib/tenant/registry";
 import { emailSuperAdmins, isPlatformEmailConfigured } from "./platform-email";
 import { istNow } from "./summary";
+import { RetryGate } from "@/lib/retry-gate";
 
 /** Today (India) as a UTC-midnight date, matching the @db.Date due dates. */
 export const todayDate = (now = new Date()) => new Date(`${istNow(now).date}T00:00:00Z`);
@@ -60,11 +61,26 @@ async function sendPlatformSummary(now: Date) {
   const opts = readSummaryOptions(s.summary);
   const { date, time } = istNow(now);
   if (!opts.enabled || time < opts.time || s.summarySentOn === date) return;
+  if (!platformRetry.canTry("platform", date, now.getTime())) return;
   if (!(await isPlatformEmailConfigured())) return;
   const claimed = await platform.platformSettings.updateMany({
     where: { id: 1, OR: [{ summarySentOn: null }, { summarySentOn: { not: date } }] },
     data: { summarySentOn: date },
   });
   if (!claimed.count) return;
-  await emailSuperAdmins(`Bureau platform: billing summary for ${date}`, await buildPlatformSummary(now));
+  let sent = 0;
+  try {
+    sent = await emailSuperAdmins(`Bureau platform: billing summary for ${date}`, await buildPlatformSummary(now));
+  } finally {
+    if (sent) platformRetry.succeeded("platform");
+    else {
+      // Nobody got it: give today back so a later tick retries (10, 30, 60, 120 minutes)
+      await platform.platformSettings.updateMany({ where: { id: 1, summarySentOn: date }, data: { summarySentOn: s.summarySentOn } });
+      const next = platformRetry.failed("platform", date, now.getTime());
+      console.error(`[billing] platform summary not sent; ${next ? `retrying after ${next.toISOString()}` : "giving up for today"}`);
+    }
+  }
 }
+
+const gRetry = globalThis as unknown as { __platformSummaryRetry?: RetryGate };
+const platformRetry = (gRetry.__platformSummaryRetry ??= new RetryGate());

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { SESSION_COOKIE } from "@/lib/auth/session";
 import { setSessionCookie } from "@/lib/auth/cookie";
+import { revokeCurrentSession } from "@/lib/auth/server";
 import { loginLimits } from "@/lib/auth/rate-limit";
 import { clientIp } from "@/lib/auth/client-ip";
 import { requireTenant } from "@/lib/tenant/context";
@@ -42,6 +43,11 @@ export async function loginAction(_prev: { error?: string; email?: string } | un
 }
 
 export async function logoutAction() {
+  try {
+    await revokeCurrentSession();
+  } catch (e) {
+    console.error("[logout] could not revoke the session", e); // still clear the cookie below
+  }
   (await cookies()).delete(SESSION_COOKIE);
   redirect("/login");
 }

@@ -31,7 +31,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
           />
         </form>
         <div className="md:flex-1 md:overflow-y-auto">
-          <NavLinks isOwner={isOwner} features={await bureauFeatures()} />
+          <NavLinks isOwner={isOwner} features={await bureauFeatures()} can={{ payments: user.can.payments, reports: user.can.reports }} />
         </div>
         <div className="hidden space-y-2 border-t border-zinc-100 px-4 py-3 md:block">
           <form action={logoutAction}>

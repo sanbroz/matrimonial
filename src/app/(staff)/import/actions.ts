@@ -5,9 +5,9 @@ import Papa from "papaparse";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth/server";
-import { isBlankRow, mapRow } from "@/lib/import-mapping";
+import { IMPORT_BATCH, isBlankRow, mapRow, nameDobKey } from "@/lib/import-mapping";
 import { phoneKey } from "@/lib/parse";
-import { createProfile, existingPhoneIndex } from "@/lib/services/profiles";
+import { createProfile, existingNameDobIndex, existingPhoneIndex } from "@/lib/services/profiles";
 
 const MAX_ROWS = 5000;
 
@@ -81,7 +81,10 @@ function cellText(v: ExcelJS.CellValue): string {
 const runSchema = z.object({
   fileName: z.string().max(200),
   mapping: z.array(z.string().nullable()),
-  rows: z.array(z.array(z.string())).max(MAX_ROWS),
+  /** One batch of the file (the wizard sends IMPORT_BATCH rows at a time) */
+  rows: z.array(z.array(z.string())).max(IMPORT_BATCH),
+  /** Index of the batch's first row in the file (for row numbers) */
+  firstRow: z.number().int().min(0).max(MAX_ROWS),
   defaultGender: z.enum(["MALE", "FEMALE", ""]),
   duplicates: z.enum(["skip", "import"]),
 });
@@ -93,13 +96,14 @@ export type ImportResult = {
 
 export async function runImport(input: z.infer<typeof runSchema>): Promise<ImportResult> {
   const user = await requireUser();
-  const { fileName, mapping, rows, defaultGender, duplicates } = runSchema.parse(input);
-  const phones = await existingPhoneIndex();
+  const { fileName, mapping, rows, defaultGender, duplicates, firstRow } = runSchema.parse(input);
+  // Re-read for every batch: rows saved by earlier batches count as existing
+  const [phones, people] = await Promise.all([existingPhoneIndex(), existingNameDobIndex()]);
   const result: ImportResult = { created: [], skipped: [] };
   const source = `${fileName} (${new Date().toISOString().slice(0, 10)})`;
 
   for (let i = 0; i < rows.length; i++) {
-    const rowNumber = i + 2;
+    const rowNumber = firstRow + i + 2;
     if (isBlankRow(rows[i])) continue;
     const r = mapRow(rows[i], mapping, rowNumber, { gender: defaultGender });
     if (r.errors.length) {
@@ -108,13 +112,20 @@ export async function runImport(input: z.infer<typeof runSchema>): Promise<Impor
     }
     const keys = [phoneKey(r.profile.phone as string), phoneKey(r.profile.altPhone as string)].filter(Boolean) as string[];
     const dupOf = keys.map((k) => phones.get(k)).find(Boolean);
+    const personKey = nameDobKey(r.profile.fullName, r.profile.dob);
+    const sameOf = personKey ? people.get(personKey) : undefined;
     if (dupOf && duplicates === "skip") {
       result.skipped.push({ rowNumber, reason: `Phone already on profile ${dupOf}` });
+      continue;
+    }
+    if (sameOf && duplicates === "skip") {
+      result.skipped.push({ rowNumber, reason: `Same name and date of birth as profile ${sameOf}` });
       continue;
     }
     try {
       const p = await createProfile(r.profile, r.preference, user.id, { importedFrom: source });
       for (const k of keys) phones.set(k, p.code); // catch duplicates within the same file
+      if (personKey) people.set(personKey, p.code);
       result.created.push({ rowNumber, code: p.code, name: p.fullName });
     } catch (e) {
       console.error("import row failed", rowNumber, e);

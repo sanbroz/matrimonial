@@ -6,8 +6,9 @@ import { prisma } from "@/lib/db";
 import { platform } from "@/lib/platform-db";
 import { currentTenant, isConsoleRequest } from "@/lib/tenant/context";
 import { CONSOLE_COOKIE, SESSION_COOKIE, verifyConsoleSession, verifySession } from "./session";
+import { permissionsFor, PERMISSIONS, type Permission, type Permissions } from "@/lib/permissions";
 
-export type CurrentUser = { id: string; name: string; email: string; role: "OWNER" | "STAFF" };
+export type CurrentUser = { id: string; name: string; email: string; role: "OWNER" | "STAFF"; can: Permissions };
 
 /**
  * Reads the cookie and re-loads the user, so deactivated staff lose access immediately.
@@ -21,10 +22,12 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (!session || session.tid !== tenant.id) return null;
   const user = await prisma.user.findUnique({
     where: { id: session.uid },
-    select: { id: true, name: true, email: true, role: true, active: true, tokenVersion: true },
+    select: { id: true, name: true, email: true, role: true, active: true, tokenVersion: true, permissions: true },
   });
   if (!user || !user.active || user.tokenVersion !== session.tv) return null;
-  return { id: user.id, name: user.name, email: user.email, role: user.role };
+  // Signed out on this device (cookies from before v2.8 have no id and rely on their 7-day expiry)
+  if (session.sid && (await prisma.revokedSession.findUnique({ where: { id: session.sid }, select: { id: true } }))) return null;
+  return { id: user.id, name: user.name, email: user.email, role: user.role, can: permissionsFor(user.role, user.permissions) };
 });
 
 /** For pages and server actions: redirects to /login when not signed in. */
@@ -43,6 +46,22 @@ export async function requireOwner(): Promise<CurrentUser> {
   const user = await requireUser();
   if (user.role !== "OWNER") redirect("/?denied=1");
   return user;
+}
+
+/** Pages and actions a staff member needs a permission for (owners always pass). */
+export async function requirePermission(p: Permission): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (!user.can[p]) redirect(`/?denied=${encodeURIComponent(PERMISSIONS[p].label)}`);
+  return user;
+}
+
+/** Signing out: this login's cookie stops working even if someone copied it. */
+export async function revokeCurrentSession() {
+  const session = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
+  if (!session?.sid || !(await currentTenant())) return;
+  const expiresAt = new Date((session.exp ?? Date.now() / 1000 + 7 * 86400) * 1000);
+  await prisma.revokedSession.upsert({ where: { id: session.sid }, update: {}, create: { id: session.sid, expiresAt } });
+  await prisma.revokedSession.deleteMany({ where: { expiresAt: { lt: new Date() } } }); // tidy up old ones
 }
 
 // ───────────── Super admin console ─────────────

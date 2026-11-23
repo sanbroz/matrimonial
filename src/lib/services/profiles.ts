@@ -1,3 +1,4 @@
+import { nameDobKey } from "@/lib/import-mapping";
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -78,6 +79,17 @@ export async function existingPhoneIndex(): Promise<Map<string, string>> {
       const k = phoneKey(p);
       if (k) map.set(k, r.code);
     }
+  }
+  return map;
+}
+
+/** "name|date of birth" → profile code, for spotting the same person when no phone matches. */
+export async function existingNameDobIndex(): Promise<Map<string, string>> {
+  const rows = await prisma.profile.findMany({ where: { dob: { not: null } }, select: { code: true, fullName: true, dob: true } });
+  const map = new Map<string, string>();
+  for (const r of rows) {
+    const k = nameDobKey(r.fullName, r.dob);
+    if (k) map.set(k, r.code);
   }
   return map;
 }

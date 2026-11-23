@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { guessMapping, mapRow } from "./import-mapping";
+import { guessMapping, mapRow, nameDobKey } from "./import-mapping";
 
 describe("guessMapping", () => {
   it("recognises typical register headers", () => {
@@ -38,5 +38,26 @@ describe("mapRow", () => {
   it("leaves unmapped fields out so they keep their database defaults", () => {
     const r = mapRow(["A", "M"], ["fullName", "gender"], 2);
     expect(Object.keys(r.profile).sort()).toEqual(["fullName", "gender"]);
+  });
+});
+
+describe("nameDobKey", () => {
+  it("treats spacing, case and dots alike", () => {
+    const d = new Date("1995-04-12T00:00:00Z");
+    expect(nameDobKey("Gurpreet  Singh", d)).toBe(nameDobKey("gurpreet singh.", d));
+    expect(nameDobKey("Gurpreet Singh", d)).toBe("gurpreet singh|1995-04-12");
+  });
+  it("needs both a name and a date of birth", () => {
+    expect(nameDobKey("Gurpreet Singh", null)).toBeNull();
+    expect(nameDobKey("", new Date())).toBeNull();
+    expect(nameDobKey("Gurpreet", new Date("x"))).toBeNull();
+  });
+});
+
+describe("nameDobKey (Gurmukhi)", () => {
+  it("keeps vowel signs, so different Punjabi names stay different", () => {
+    const d = new Date("1995-04-12T00:00:00Z");
+    expect(nameDobKey("ਗੁਰਪ੍ਰੀਤ ਸਿੰਘ", d)).toBe("ਗੁਰਪ੍ਰੀਤ ਸਿੰਘ|1995-04-12");
+    expect(nameDobKey("ਗੁਰਪ੍ਰੀਤ ਸਿੰਘ", d)).not.toBe(nameDobKey("ਗਰਪਰਤ ਸਘ", d));
   });
 });

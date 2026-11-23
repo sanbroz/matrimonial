@@ -1,5 +1,6 @@
 "use server";
 
+import { permissionsFromForm } from "@/lib/permissions";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -196,6 +197,8 @@ export async function saveStaff(fd: FormData) {
     name,
     email,
     role: role as "OWNER" | "STAFF",
+    // Only when the form showed the boxes (they're hidden for owners, who can do everything)
+    ...(fd.get("_perms") ? { permissions: permissionsFromForm(fd) } : {}),
     ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}),
   };
   if (id) {
@@ -211,6 +214,15 @@ export async function saveStaff(fd: FormData) {
   }
   revalidatePath("/settings/staff");
   back("/settings/staff", id ? "Account updated" : "Account created");
+}
+
+/** Ends all of a person's logins (a lost phone, a shared computer). Their own next sign-in works as usual. */
+export async function signOutEverywhere(fd: FormData) {
+  const me = await requireOwner();
+  const id = z.string().parse(fd.get("id"));
+  const u = await prisma.user.update({ where: { id }, data: { tokenVersion: { increment: 1 } } });
+  if (id === me.id) await setSessionCookie(u); // keep this device signed in
+  back("/settings/staff", id === me.id ? "Signed out on all your other devices" : `${u.name} is signed out on every device`);
 }
 
 export async function toggleStaffActive(fd: FormData) {

@@ -11,6 +11,7 @@ import { currentTenant } from "@/lib/tenant/context";
 import { tenantBaseUrl } from "@/lib/tenant/registry";
 import { bureauFeatures, workflowSettings } from "./workflow";
 import { pendingMatches } from "./matching";
+import { RetryGate } from "@/lib/retry-gate";
 
 const IST = 330 * 60000;
 
@@ -113,10 +114,12 @@ export async function sendDailySummary({ force = false, now = new Date() } = {})
   const s = await prisma.settings.findUniqueOrThrow({ where: { id: 1 }, select: { summaryOptions: true, lastSummaryDate: true, bureauName: true } });
   const opts = readSummaryOptions(s.summaryOptions);
   const { date, time } = istNow(now);
+  const retryKey = (await currentTenant())?.schema ?? "";
   if (!force) {
     if (!opts.enabled) return { sent: false, reason: "turned off", recipients: [] };
     if (time < opts.time) return { sent: false, reason: "not time yet", recipients: [] };
     if (s.lastSummaryDate === date) return { sent: false, reason: "already sent today", recipients: [] };
+    if (!summaryRetry.canTry(retryKey, date, now.getTime())) return { sent: false, reason: "waiting to retry", recipients: [] };
   }
   if (!(await isEmailConfigured())) return { sent: false, reason: "email is not set up", recipients: [] };
 
@@ -128,15 +131,36 @@ export async function sendDailySummary({ force = false, now = new Date() } = {})
     });
     if (claimed.count === 0) return { sent: false, reason: "already sent today", recipients: [] };
   }
+  /** Nothing went out: give today back so the scheduler tries again later (10, 30, 60, 120 minutes). */
+  const release = async (reason: string) => {
+    if (force) return;
+    await prisma.settings.updateMany({ where: { id: 1, lastSummaryDate: date }, data: { lastSummaryDate: s.lastSummaryDate } });
+    const next = summaryRetry.failed(retryKey, date, now.getTime());
+    console.error(`[summary] ${retryKey}: ${reason}; ${next ? `retrying after ${next.toISOString()}` : "giving up for today"}`);
+  };
 
-  const owners = await prisma.user.findMany({ where: { role: "OWNER", active: true }, select: { email: true } });
-  const recipients = [...new Set([...owners.map((o) => o.email), ...opts.extraRecipients])];
-  const text = await buildSummary(now);
-  const pretty = new Date(`${date}T00:00:00Z`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
   const sentTo: string[] = [];
-  for (const to of recipients) {
-    const r = await sendEmail({ to, subject: `${s.bureauName}: daily summary for ${pretty}`, text, kind: "summary" });
-    if (r.ok) sentTo.push(to);
+  try {
+    const owners = await prisma.user.findMany({ where: { role: "OWNER", active: true }, select: { email: true } });
+    const recipients = [...new Set([...owners.map((o) => o.email), ...opts.extraRecipients])];
+    const text = await buildSummary(now);
+    const pretty = new Date(`${date}T00:00:00Z`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+    for (const to of recipients) {
+      const r = await sendEmail({ to, subject: `${s.bureauName}: daily summary for ${pretty}`, text, kind: "summary" });
+      if (r.ok) sentTo.push(to);
+    }
+  } catch (e) {
+    // Only retry when nobody got it (a retry after a partial send would send twice)
+    if (!sentTo.length) await release(e instanceof Error ? e.message : "failed");
+    throw e;
   }
-  return sentTo.length ? { sent: true, recipients: sentTo } : { sent: false, reason: "sending failed (see Recent emails)", recipients: [] };
+  if (!sentTo.length) {
+    await release("sending failed");
+    return { sent: false, reason: "sending failed (see Recent emails)", recipients: [] };
+  }
+  summaryRetry.succeeded(retryKey);
+  return { sent: true, recipients: sentTo };
 }
+
+const gRetry = globalThis as unknown as { __summaryRetry?: RetryGate };
+const summaryRetry = (gRetry.__summaryRetry ??= new RetryGate());

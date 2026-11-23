@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireOwner, requireUser } from "@/lib/auth/server";
+import { requireOwner, requirePermission } from "@/lib/auth/server";
 import { parseDateLoose } from "@/lib/parse";
 import { dueBalance, membershipEnd, rupees, todayIST } from "@/lib/money";
 import { recordPayment, refreshDue } from "@/lib/services/money";
@@ -46,7 +46,7 @@ class BalanceError extends Error {}
 // ───────────── Membership ─────────────
 
 export async function startMembership(fd: FormData) {
-  const user = await requireUser();
+  const user = await requirePermission("payments");
   const profileId = z.string().parse(fd.get("profileId"));
   const plan = await prisma.plan.findUnique({ where: { id: str(fd, "planId") } });
   if (!plan) back(profileId, "Choose a plan", "error");
@@ -95,7 +95,7 @@ export async function startMembership(fd: FormData) {
 // ───────────── Charges ─────────────
 
 export async function addCharge(fd: FormData) {
-  await requireUser();
+  await requirePermission("payments");
   const profileId = z.string().parse(fd.get("profileId"));
   const kind = z.enum(["REGISTRATION", "OTHER"]).parse(fd.get("kind"));
   const amount = money(fd, "amount");
@@ -107,7 +107,7 @@ export async function addCharge(fd: FormData) {
 }
 
 export async function payDue(fd: FormData) {
-  const user = await requireUser();
+  const user = await requirePermission("payments");
   const dueId = z.string().parse(fd.get("dueId"));
   const due = await prisma.due.findUnique({ where: { id: dueId }, include: { payments: { select: { amount: true, voidedAt: true } } } });
   if (!due) redirect("/payments");
@@ -143,7 +143,7 @@ export async function payDue(fd: FormData) {
 }
 
 export async function editDueAmount(fd: FormData) {
-  const user = await requireUser();
+  const user = await requirePermission("payments");
   const dueId = z.string().parse(fd.get("dueId"));
   const due = await prisma.due.findUnique({ where: { id: dueId }, include: { payments: { select: { amount: true, voidedAt: true } } } });
   if (!due) redirect("/payments");

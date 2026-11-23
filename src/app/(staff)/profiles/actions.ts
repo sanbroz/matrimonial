@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireOwner, requireUser } from "@/lib/auth/server";
+import { requirePermission, requireUser } from "@/lib/auth/server";
 import { parseProfileValues } from "@/lib/profile-fields";
 import { formDataToValues, type FormValues } from "@/lib/profile-form-values";
 import { changedSince, createProfile, findProfileByPhone } from "@/lib/services/profiles";
@@ -167,7 +167,7 @@ export async function uploadKundli(fd: FormData) {
 // ───────────── Delete (owner only, permanent — e.g. on the client's request) ─────────────
 
 export async function deleteProfileAction(fd: FormData) {
-  await requireOwner();
+  await requirePermission("delete");
   const id = z.string().parse(fd.get("profileId"));
   const profile = await prisma.profile.findUnique({ where: { id }, include: { photos: true } });
   if (!profile) redirect("/profiles");

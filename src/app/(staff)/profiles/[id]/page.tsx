@@ -243,7 +243,7 @@ export default async function ProfilePage({
       {/* id here (not on the card) so the ?ok= / ?error= message is in view after "#money" */}
       <div id="money" className="mt-5 scroll-mt-4">
         {(sp.ok || sp.error) && <div className="mb-2">{sp.error ? <Alert>{sp.error}</Alert> : <Alert tone="green">{sp.ok}</Alert>}</div>}
-        {features.payments && <MoneyPanel profileId={p.id} isOwner={isOwner} />}
+        {features.payments && user.can.payments && <MoneyPanel profileId={p.id} isOwner={isOwner} />}
       </div>
 
       <div className="mt-5">
@@ -254,7 +254,7 @@ export default async function ProfilePage({
         <NotesPanel target={{ profileId: p.id }} notes={p.notes} currentUserId={user.id} isOwner={isOwner} />
       </div>
 
-      {isOwner && (
+      {user.can.delete && (
         <div id="danger" className="mt-5">
           <Card title="Delete profile permanently">
             <p className="mb-3 text-sm text-zinc-600">

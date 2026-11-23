@@ -85,7 +85,7 @@ export default async function LeadPage({
             </Card>
           )}
           {lead.profile && <FormLinkCard profileId={lead.profile.id} returnTo={`/leads/${lead.id}`} />}
-          {user.role === "OWNER" && (
+          {user.can.delete && (
             <Card title="Delete lead">
               <form action={deleteLeadAction}>
                 <input type="hidden" name="id" value={lead.id} />

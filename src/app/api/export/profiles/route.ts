@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return new Response("Not signed in", { status: 401 });
-  if (user.role !== "OWNER") return new Response("Owner only", { status: 403 });
+  if (!user.can.reports) return new Response("Not allowed (Settings → Staff)", { status: 403 });
   if (!(await bureauFeatures()).reports) return new Response("Reports & export is switched off (Settings → Features)", { status: 403 });
   const file = await profilesWorkbook();
   return new Response(new Uint8Array(file), {

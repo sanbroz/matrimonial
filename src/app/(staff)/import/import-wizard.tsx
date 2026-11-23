@@ -4,7 +4,7 @@ import { formatHeight } from "@/lib/format";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { SECTIONS, inputName } from "@/lib/profile-fields";
-import { IMPORTABLE_FIELDS, guessMapping, isBlankRow, mapRow } from "@/lib/import-mapping";
+import { IMPORTABLE_FIELDS, IMPORT_BATCH, guessMapping, isBlankRow, mapRow } from "@/lib/import-mapping";
 import { Alert, Badge, Card, Field, buttonClass, cx, inputClass } from "@/components/ui";
 import { parseImportFile, runImport, type ImportResult, type ParsedSheet } from "./actions";
 
@@ -16,6 +16,9 @@ export function ImportWizard() {
   const [defaultGender, setDefaultGender] = useState<"" | "MALE" | "FEMALE">("");
   const [duplicates, setDuplicates] = useState<"skip" | "import">("skip");
   const [result, setResult] = useState<ImportResult | null>(null);
+  /** Rows sent so far while a big file is imported in batches */
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [stopped, setStopped] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const dataRows = useMemo(() => (sheet ? sheet.rows.map((r, i) => ({ r, i })).filter(({ r }) => !isBlankRow(r)) : []), [sheet]);
@@ -44,15 +47,31 @@ export function ImportWizard() {
 
   function doImport() {
     if (!sheet) return;
+    setStopped(null);
     start(async () => {
-      const res = await runImport({ fileName: sheet.fileName, mapping, rows: sheet.rows, defaultGender, duplicates });
-      setResult(res);
+      const all: ImportResult = { created: [], skipped: [] };
+      const total = sheet.rows.length;
+      for (let from = 0; from < total; from += IMPORT_BATCH) {
+        setProgress({ done: from, total });
+        try {
+          const res = await runImport({ fileName: sheet.fileName, mapping, rows: sheet.rows.slice(from, from + IMPORT_BATCH), firstRow: from, defaultGender, duplicates });
+          all.created.push(...res.created);
+          all.skipped.push(...res.skipped);
+        } catch {
+          // Keep what was saved; importing the same file again skips those rows as duplicates
+          setStopped(`The import stopped at row ${from + 2} (connection problem). Rows before it were saved. Import the same file again with "Skip the row" chosen to add the rest.`);
+          break;
+        }
+      }
+      setProgress(null);
+      setResult(all);
     });
   }
 
   if (result) {
     return (
       <div className="space-y-4">
+        {stopped && <Alert tone="amber">{stopped}</Alert>}
         <Alert tone="green">
           Imported {result.created.length} profile{result.created.length === 1 ? "" : "s"}
           {result.skipped.length > 0 && `, skipped ${result.skipped.length}`}.
@@ -141,7 +160,7 @@ export function ImportWizard() {
                   <option value="MALE">Groom</option>
                 </select>
               </Field>
-              <Field label="If the phone number already exists">
+              <Field label="If the person is already in the CRM (same phone, or same name and date of birth)">
                 <select value={duplicates} onChange={(e) => setDuplicates(e.target.value as typeof duplicates)} className={inputClass}>
                   <option value="skip">Skip the row (recommended)</option>
                   <option value="import">Import anyway</option>
@@ -198,7 +217,7 @@ export function ImportWizard() {
             )}
             <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-zinc-100 pt-4">
               <button onClick={doImport} disabled={pending || okCount === 0 || !hasName || !hasGender} className={buttonClass.primary}>
-                {pending ? "Importing…" : `Import ${okCount} profile${okCount === 1 ? "" : "s"}`}
+                {pending ? (progress ? `Importing… ${Math.min(progress.done, progress.total)} of ${progress.total} rows` : "Importing…") : `Import ${okCount} profile${okCount === 1 ? "" : "s"}`}
               </button>
               <span className="text-xs text-zinc-500">
                 Rows with problems are skipped. Duplicate phone numbers are checked during the import.

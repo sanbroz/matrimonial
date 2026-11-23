@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireOwner } from "@/lib/auth/server";
+import { requirePermission } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { requireFeature } from "@/lib/services/workflow";
 import { rupees } from "@/lib/money";
@@ -21,7 +21,7 @@ function lastMonths(count: number) {
 const monthLabel = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "UTC" });
 
 export default async function ReportsPage() {
-  await requireOwner();
+  await requirePermission("reports");
   const features = await requireFeature("reports");
   const months = lastMonths(12);
   // Start of the oldest month in India time

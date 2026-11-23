@@ -24,4 +24,6 @@ Bureau CRM backup of "$SLUG" ($(grep '^created=' "$WORK/meta.txt" | cut -d= -f2-
 Keep this file safe: it contains your clients' personal details.
 EOF
 cd "$WORK"
-7z a -t7z -mhe=on -p"$EXPORT_PASSWORD" "$OUT" db.dump uploads.tgz meta.txt README.txt >/dev/null
+# Password on stdin (twice: enter + verify), never on the command line where `ps` could show it.
+# printf is a bash builtin, so no process ever has the password in its arguments.
+printf '%s\n%s\n' "$EXPORT_PASSWORD" "$EXPORT_PASSWORD" | 7z a -t7z -mhe=on -p "$OUT" db.dump uploads.tgz meta.txt README.txt >/dev/null

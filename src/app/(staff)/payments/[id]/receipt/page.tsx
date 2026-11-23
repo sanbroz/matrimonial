@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/auth/server";
+import { requirePermission } from "@/lib/auth/server";
 import { prisma } from "@/lib/db";
 import { fileUrl } from "@/lib/storage";
 import { formatDateTime } from "@/lib/format";
@@ -19,7 +19,7 @@ import { renderTemplate } from "@/lib/templates";
 export const metadata = { title: "Receipt" };
 
 export default async function ReceiptPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
-  const user = await requireUser();
+  const user = await requirePermission("payments");
   const { id } = await params;
   const { ok, error } = await searchParams;
   const [p, s] = await Promise.all([

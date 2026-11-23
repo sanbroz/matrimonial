@@ -28,6 +28,8 @@ model User {
   active       Boolean  @default(true)
   /// Raised on password change/reset: older login cookies stop working.
   tokenVersion Int      @default(0)
+  /// Staff permissions { payments, reports, delete } (missing = default; owners can do everything)
+  permissions  Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -678,4 +680,12 @@ model Shortlist {
 
   @@unique([clientId, candidateId])
   @@index([candidateId])
+}
+
+/// Signed-out login cookies (by their id), refused until they would have expired anyway
+model RevokedSession {
+  id        String   @id
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }

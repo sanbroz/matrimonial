@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { platform } from "@/lib/platform-db";
-import { requireConsoleAdmin } from "@/lib/auth/server";
+import { getConsoleAdmin, requireConsoleAdmin } from "@/lib/auth/server";
 import { setConsoleCookie } from "@/lib/auth/cookie";
 import { CONSOLE_COOKIE } from "@/lib/auth/session";
 import { clientIp } from "@/lib/auth/client-ip";
@@ -60,6 +60,9 @@ export async function consoleLogin(_prev: { error?: string; email?: string } | u
 }
 
 export async function consoleLogout() {
+  // Console sessions are short (12 h) and few: signing out ends this admin's console logins everywhere
+  const admin = await getConsoleAdmin();
+  if (admin) await platform.superAdmin.update({ where: { id: admin.id }, data: { tokenVersion: { increment: 1 } } });
   (await cookies()).delete(CONSOLE_COOKIE);
   redirect("/console/login");
 }
